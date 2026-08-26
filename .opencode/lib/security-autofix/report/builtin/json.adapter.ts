@@ -1,4 +1,5 @@
 import type { ReportAdapter, ReportAdapterInput, ReportEnvelope } from "../types"
+import { normalizeRawFinding } from "../normalize.ts"
 
 export const jsonReportAdapter: ReportAdapter = {
   id: "json",
@@ -22,7 +23,7 @@ export const jsonReportAdapter: ReportAdapter = {
         scanner: raw?.scanner,
         adapter: "json",
       },
-      findings,
+      findings: findings.map(finding => normalizeRawFinding(finding, raw?.scanner)),
       warnings: [],
     }
   },

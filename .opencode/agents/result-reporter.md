@@ -21,7 +21,7 @@ permission:
 ## 报告对象
 至少整理：
 - task/source
-- finding id/type/cwe/severity
+- finding id、Rule Identity、Taxonomy、Classification、severity
 - verdict/fixability
 - rootCause
 - `repairProvider`（领域 Skill）

@@ -7,7 +7,12 @@ export type Fixability =
 
 export interface RepairEntry {
   id: string
-  type: string
+  display_type: string
+  matchers?: {
+    scanner_rules?: Array<{ scanner: string; rule_id: string }>
+    taxonomies?: Array<{ name: string; id: string }>
+    aliases?: string[]
+  }
   provider: string
   strategy: string
   name_zh?: string
@@ -18,10 +23,89 @@ export interface RepairEntry {
   validators: string[]
 }
 
+const builtinCwes: Record<string, string[]> = {
+  SQL_INJECTION: ["CWE-89"],
+  NOSQL_INJECTION: ["CWE-943"],
+  COMMAND_INJECTION: ["CWE-78"],
+  TEMPLATE_INJECTION: ["CWE-1336"],
+  EXPRESSION_INJECTION: ["CWE-917"],
+  XXE: ["CWE-611"],
+  XPATH_INJECTION: ["CWE-643"],
+  LDAP_INJECTION: ["CWE-90"],
+  XML_INJECTION: ["CWE-91"],
+  DDE_INJECTION: ["CWE-1236"],
+  UNSAFE_DESERIALIZATION: ["CWE-502"],
+  OPEN_REDIRECT: ["CWE-601"],
+  PATH_TRAVERSAL: ["CWE-22"],
+  ZIP_SLIP: ["CWE-22"],
+  UNSAFE_REFLECTION: ["CWE-470"],
+  XSS: ["CWE-79"],
+  SSRF: ["CWE-918"],
+  UNSAFE_FILE_UPLOAD: ["CWE-434"],
+  WEAK_CRYPTO: ["CWE-327"],
+  TLS_TRUST_ALL: ["CWE-295"],
+  CORS_MISCONFIGURATION: ["CWE-942"],
+  COOKIE_SECURITY: ["CWE-614", "CWE-1004"],
+  HARDCODED_SECRET: ["CWE-259", "CWE-321", "CWE-798"],
+  SENSITIVE_LOGGING: ["CWE-532"],
+  REDOS: ["CWE-1333"],
+  CSRF: ["CWE-352"],
+  MASS_ASSIGNMENT: ["CWE-915"],
+  SECURITY_HEADERS: ["CWE-693"],
+  CRLF_INJECTION: ["CWE-93"],
+  HOST_HEADER_INJECTION: ["CWE-346", "CWE-644"],
+  IDOR: ["CWE-639"],
+  BOLA: ["CWE-639"],
+  BROKEN_FUNCTION_LEVEL_AUTHORIZATION: ["CWE-862"],
+  DEPENDENCY_VULNERABILITY: ["CWE-1104"],
+}
+
+const builtinAliases: Record<string, string[]> = {
+  SQL_INJECTION: ["SQLI"],
+  COMMAND_INJECTION: ["OS_COMMAND_INJECTION", "SHELL_INJECTION"],
+  TEMPLATE_INJECTION: ["SSTI", "SERVER_SIDE_TEMPLATE_INJECTION"],
+  UNSAFE_DESERIALIZATION: ["INSECURE_DESERIALIZATION", "DESERIALIZATION"],
+  PATH_TRAVERSAL: ["DIRECTORY_TRAVERSAL"],
+  XSS: ["CROSS_SITE_SCRIPTING"],
+  SSRF: ["SERVER_SIDE_REQUEST_FORGERY"],
+  UNSAFE_FILE_UPLOAD: ["UNRESTRICTED_FILE_UPLOAD"],
+  WEAK_CRYPTO: ["WEAK_CRYPTOGRAPHY", "BROKEN_CRYPTOGRAPHY"],
+  TLS_TRUST_ALL: ["IMPROPER_CERTIFICATE_VALIDATION"],
+  HARDCODED_SECRET: ["HARDCODED_CREDENTIALS", "HARDCODED_PASSWORD"],
+  REDOS: ["REGULAR_EXPRESSION_DENIAL_OF_SERVICE"],
+  BOLA: ["BROKEN_OBJECT_LEVEL_AUTHORIZATION"],
+  BROKEN_FUNCTION_LEVEL_AUTHORIZATION: ["BFLA"],
+  DEPENDENCY_VULNERABILITY: ["VULNERABLE_DEPENDENCY", "KNOWN_VULNERABLE_COMPONENT"],
+}
+
+const builtinScannerRules: Record<string, Array<{ scanner: string; rule_id: string }>> = {
+  SQL_INJECTION: [
+    { scanner: "CodeQL", rule_id: "java/sql-injection" },
+    { scanner: "CodeQL", rule_id: "js/sql-injection" },
+    { scanner: "CodeQL", rule_id: "py/sql-injection" },
+  ],
+}
+
+function withDefaultMatchers(entry: RepairEntry): RepairEntry {
+  const existing = entry.matchers ?? {}
+  const taxonomies = (builtinCwes[entry.display_type] ?? []).map(id => ({ name: "CWE", id }))
+  return {
+    ...entry,
+    matchers: {
+      scanner_rules: [
+        ...(builtinScannerRules[entry.display_type] ?? []),
+        ...(existing.scanner_rules ?? []),
+      ],
+      taxonomies: [...taxonomies, ...(existing.taxonomies ?? [])],
+      aliases: [entry.display_type, ...(builtinAliases[entry.display_type] ?? []), ...(existing.aliases ?? [])],
+    },
+  }
+}
+
 const entries: RepairEntry[] = [
   {
     "id": "sql-injection.generic",
-    "type": "SQL_INJECTION",
+    "display_type": "SQL_INJECTION",
     "provider": "fix-injection",
     "name_zh": "SQL 注入",
     "priority": 100,
@@ -49,7 +133,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "nosql-injection.generic",
-    "type": "NOSQL_INJECTION",
+    "display_type": "NOSQL_INJECTION",
     "provider": "fix-injection",
     "name_zh": "NoSQL 注入",
     "priority": 100,
@@ -74,7 +158,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "command-injection.generic",
-    "type": "COMMAND_INJECTION",
+    "display_type": "COMMAND_INJECTION",
     "provider": "fix-injection",
     "name_zh": "命令注入",
     "priority": 100,
@@ -99,7 +183,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "template-injection.generic",
-    "type": "TEMPLATE_INJECTION",
+    "display_type": "TEMPLATE_INJECTION",
     "provider": "fix-injection",
     "name_zh": "模板注入（SSTI）",
     "priority": 100,
@@ -121,7 +205,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "expression-injection.generic",
-    "type": "EXPRESSION_INJECTION",
+    "display_type": "EXPRESSION_INJECTION",
     "provider": "fix-injection",
     "name_zh": "表达式注入",
     "priority": 100,
@@ -143,7 +227,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "xxe.generic",
-    "type": "XXE",
+    "display_type": "XXE",
     "provider": "fix-xml-deserialization",
     "name_zh": "XML 外部实体（XXE）",
     "priority": 100,
@@ -166,7 +250,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "xpath-injection.generic",
-    "type": "XPATH_INJECTION",
+    "display_type": "XPATH_INJECTION",
     "provider": "fix-injection",
     "name_zh": "XPath 注入",
     "priority": 100,
@@ -188,7 +272,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "ldap-injection.generic",
-    "type": "LDAP_INJECTION",
+    "display_type": "LDAP_INJECTION",
     "provider": "fix-injection",
     "name_zh": "LDAP 注入",
     "priority": 100,
@@ -210,7 +294,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "xml-injection.generic",
-    "type": "XML_INJECTION",
+    "display_type": "XML_INJECTION",
     "provider": "fix-xml-deserialization",
     "name_zh": "XML 注入",
     "priority": 100,
@@ -232,7 +316,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "dde-injection.generic",
-    "type": "DDE_INJECTION",
+    "display_type": "DDE_INJECTION",
     "provider": "fix-xml-deserialization",
     "name_zh": "DDE/公式注入",
     "priority": 100,
@@ -254,7 +338,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "unsafe-deserialization.generic",
-    "type": "UNSAFE_DESERIALIZATION",
+    "display_type": "UNSAFE_DESERIALIZATION",
     "provider": "fix-xml-deserialization",
     "name_zh": "不安全反序列化",
     "priority": 100,
@@ -276,7 +360,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "open-redirect.generic",
-    "type": "OPEN_REDIRECT",
+    "display_type": "OPEN_REDIRECT",
     "provider": "fix-web-security",
     "name_zh": "开放重定向",
     "priority": 100,
@@ -298,7 +382,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "path-traversal.generic",
-    "type": "PATH_TRAVERSAL",
+    "display_type": "PATH_TRAVERSAL",
     "provider": "fix-request-security",
     "name_zh": "路径遍历",
     "priority": 100,
@@ -324,7 +408,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "zip-slip.generic",
-    "type": "ZIP_SLIP",
+    "display_type": "ZIP_SLIP",
     "provider": "fix-request-security",
     "name_zh": "Zip Slip",
     "priority": 100,
@@ -350,7 +434,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "jndi-injection.generic",
-    "type": "JNDI_INJECTION",
+    "display_type": "JNDI_INJECTION",
     "provider": "fix-injection",
     "name_zh": "JNDI 注入",
     "priority": 100,
@@ -372,7 +456,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "unsafe-reflection.generic",
-    "type": "UNSAFE_REFLECTION",
+    "display_type": "UNSAFE_REFLECTION",
     "provider": "fix-code-security",
     "name_zh": "不安全反射",
     "priority": 100,
@@ -394,7 +478,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "xss.generic",
-    "type": "XSS",
+    "display_type": "XSS",
     "provider": "fix-web-security",
     "name_zh": "跨站脚本（XSS）",
     "priority": 100,
@@ -418,7 +502,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "ssrf.generic",
-    "type": "SSRF",
+    "display_type": "SSRF",
     "provider": "fix-request-security",
     "name_zh": "服务端请求伪造（SSRF）",
     "priority": 100,
@@ -440,7 +524,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "unsafe-file-upload.generic",
-    "type": "UNSAFE_FILE_UPLOAD",
+    "display_type": "UNSAFE_FILE_UPLOAD",
     "provider": "fix-request-security",
     "name_zh": "不安全文件上传",
     "priority": 100,
@@ -462,7 +546,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "weak-crypto.generic",
-    "type": "WEAK_CRYPTO",
+    "display_type": "WEAK_CRYPTO",
     "provider": "fix-crypto-secret",
     "name_zh": "弱密码学",
     "priority": 100,
@@ -491,7 +575,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "tls-trust-all.generic",
-    "type": "TLS_TRUST_ALL",
+    "display_type": "TLS_TRUST_ALL",
     "provider": "fix-crypto-secret",
     "name_zh": "TLS 证书/主机名校验绕过",
     "priority": 100,
@@ -518,7 +602,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "cors-misconfiguration.generic",
-    "type": "CORS_MISCONFIGURATION",
+    "display_type": "CORS_MISCONFIGURATION",
     "provider": "fix-web-security",
     "name_zh": "CORS_MISCONFIGURATION",
     "priority": 100,
@@ -544,7 +628,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "cookie-security.generic",
-    "type": "COOKIE_SECURITY",
+    "display_type": "COOKIE_SECURITY",
     "provider": "fix-auth-security",
     "name_zh": "Cookie 安全配置",
     "priority": 100,
@@ -569,7 +653,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "hardcoded-secret.generic",
-    "type": "HARDCODED_SECRET",
+    "display_type": "HARDCODED_SECRET",
     "provider": "fix-crypto-secret",
     "name_zh": "硬编码 Secret",
     "priority": 100,
@@ -591,7 +675,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "sensitive-logging.generic",
-    "type": "SENSITIVE_LOGGING",
+    "display_type": "SENSITIVE_LOGGING",
     "provider": "fix-crypto-secret",
     "name_zh": "敏感信息日志泄露",
     "priority": 100,
@@ -613,7 +697,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "redos.generic",
-    "type": "REDOS",
+    "display_type": "REDOS",
     "provider": "fix-code-security",
     "name_zh": "正则表达式拒绝服务（ReDoS）",
     "priority": 100,
@@ -635,7 +719,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "csrf.generic",
-    "type": "CSRF",
+    "display_type": "CSRF",
     "provider": "fix-web-security",
     "name_zh": "跨站请求伪造（CSRF）",
     "priority": 100,
@@ -661,7 +745,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "mass-assignment.generic",
-    "type": "MASS_ASSIGNMENT",
+    "display_type": "MASS_ASSIGNMENT",
     "provider": "fix-auth-security",
     "name_zh": "Mass Assignment / Over-posting",
     "priority": 100,
@@ -683,7 +767,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "security-headers.generic",
-    "type": "SECURITY_HEADERS",
+    "display_type": "SECURITY_HEADERS",
     "provider": "fix-web-security",
     "name_zh": "安全响应头缺失/弱配置",
     "priority": 100,
@@ -705,7 +789,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "crlf-injection.generic",
-    "type": "CRLF_INJECTION",
+    "display_type": "CRLF_INJECTION",
     "provider": "fix-web-security",
     "name_zh": "CRLF_INJECTION",
     "priority": 100,
@@ -727,7 +811,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "host-header-injection.generic",
-    "type": "HOST_HEADER_INJECTION",
+    "display_type": "HOST_HEADER_INJECTION",
     "provider": "fix-web-security",
     "name_zh": "Host Header 注入",
     "priority": 100,
@@ -749,7 +833,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "jwt-security.generic",
-    "type": "JWT_SECURITY",
+    "display_type": "JWT_SECURITY",
     "provider": "fix-auth-security",
     "name_zh": "JWT 安全问题",
     "priority": 100,
@@ -775,7 +859,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "idor.generic",
-    "type": "IDOR",
+    "display_type": "IDOR",
     "provider": "fix-auth-security",
     "name_zh": "IDOR",
     "priority": 100,
@@ -793,7 +877,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "bola.generic",
-    "type": "BOLA",
+    "display_type": "BOLA",
     "provider": "fix-auth-security",
     "name_zh": "BOLA",
     "priority": 100,
@@ -811,7 +895,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "broken-function-level-authorization.generic",
-    "type": "BROKEN_FUNCTION_LEVEL_AUTHORIZATION",
+    "display_type": "BROKEN_FUNCTION_LEVEL_AUTHORIZATION",
     "provider": "fix-auth-security",
     "name_zh": "BROKEN_FUNCTION_LEVEL_AUTHORIZATION",
     "priority": 100,
@@ -829,7 +913,7 @@ const entries: RepairEntry[] = [
   },
   {
     "id": "dependency-vulnerability.generic",
-    "type": "DEPENDENCY_VULNERABILITY",
+    "display_type": "DEPENDENCY_VULNERABILITY",
     "provider": "fix-dependency-config",
     "name_zh": "第三方依赖漏洞",
     "priority": 100,
@@ -860,12 +944,13 @@ const entries: RepairEntry[] = [
     ],
     "strategy": "dependency-vulnerability"
   }
-]
+].map(withDefaultMatchers)
 
 export function registerRepairEntry(entry: RepairEntry) {
+  const normalized = withDefaultMatchers(entry)
   const index = entries.findIndex(item => item.id === entry.id)
-  if (index >= 0) entries[index] = entry
-  else entries.push(entry)
+  if (index >= 0) entries[index] = normalized
+  else entries.push(normalized)
 }
 
 export function listRepairEntries() {
@@ -913,29 +998,17 @@ function supports(values: string[], actual: string | undefined) {
   return normalized.includes("*") || normalized.includes(actual)
 }
 
-function exact(values: string[], actual: string | undefined) {
-  if (!actual) return 0
-  return values.some(value => value.toLowerCase() === actual) ? 1 : 0
+export function getRepairEntry(id: string) {
+  const targetId = id.trim()
+  return entries.find(entry => entry.id === targetId)
 }
 
-export function resolveRepairEntry(type: string, language?: string, framework?: string) {
-  const targetType = type.trim().toUpperCase()
+export function resolveRepairEntryById(id: string, language?: string, framework?: string) {
   const targetLanguage = normalize(language, languageAliases)
   const targetFramework = normalize(framework, frameworkAliases)
-
-  const candidates = entries
-    .filter(entry => entry.type.toUpperCase() === targetType)
-    .filter(entry => supports(entry.supported_languages, targetLanguage))
-    .filter(entry => supports(entry.supported_frameworks, targetFramework))
-    .map(entry => ({
-      entry,
-      specificity:
-        exact(entry.supported_languages, targetLanguage) +
-        exact(entry.supported_frameworks, targetFramework),
-    }))
-    .sort((a, b) =>
-      b.specificity - a.specificity || b.entry.priority - a.entry.priority,
-    )
-
-  return candidates[0]?.entry
+  const entry = getRepairEntry(id)
+  if (!entry) return undefined
+  if (!supports(entry.supported_languages, targetLanguage)) return undefined
+  if (!supports(entry.supported_frameworks, targetFramework)) return undefined
+  return entry
 }

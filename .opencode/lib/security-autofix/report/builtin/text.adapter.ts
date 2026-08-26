@@ -36,6 +36,7 @@ export const textReportAdapter: ReportAdapter = {
         adapter: "text",
       },
       findings: [{
+        taxonomies: [],
         title: "UNSTRUCTURED_REPORT",
         description: input.text,
         raw: input.text,

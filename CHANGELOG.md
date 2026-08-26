@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## Finding 分类协议重构版本
+
+- 参考 SARIF 的 Rule Identity 和 Taxonomy 建模，将扫描器事实、分类判断与 Repair 路由拆分。
+- 新增 `autofix_classify`，依次使用 Scanner Rule、Taxonomy、原始别名和语义候选匹配 Repair Catalog。
+- 新增 `MATCHED | AMBIGUOUS | UNCLASSIFIED | NOT_SUPPORTED | HUMAN_REVIEW` 分类状态；只有 `MATCHED` 会输出可自动路由的 `repair_entry_id`。
+- Repair Entry 改为 `display_type + matchers`，支持 Scanner Rule、Taxonomy 和 Alias 扩展。
+- `autofix_repair` 改为只接受 `repair_entry_id + language + framework`，不再由 Agent 自由填写漏洞类型。
+- Report Adapter 统一输出结构化 `RawFinding`，SARIF Adapter 保留 Rule、CWE Taxonomy、Fingerprint 和位置。
+- Targeted Scan 协议改为 `repairEntryId/ruleId/findingId`，并更新 Command Scanner 占位符。
+- 直接删除旧 `type`、`{type}`、`{rule}` 协议，不提供旧版兼容层。
+- 自动化测试扩展到 31 个。
+
 ## 构建范围精简版本
 
 - `autofix_build` 移除 Go 和 .NET 支持，保留 Maven、Gradle、Node 和 Python。

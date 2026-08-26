@@ -24,6 +24,20 @@ export type {
 export {
   registerRepairEntry,
   listRepairEntries,
-  resolveRepairEntry,
+  getRepairEntry,
+  resolveRepairEntryById,
 } from "./repair/catalog"
 export type { Fixability, RepairEntry } from "./repair/catalog"
+
+export { classifyFinding, listSupportedDisplayTypes } from "./classification/registry"
+export type {
+  ClassificationCandidate,
+  ClassificationConfidence,
+  ClassificationInput,
+  ClassificationMatchKind,
+  ClassificationStatus,
+  FindingClassification,
+  RuleIdentity,
+  SemanticClassificationCandidate,
+  TaxonomyReference,
+} from "./classification/types"

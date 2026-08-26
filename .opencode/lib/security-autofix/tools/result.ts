@@ -126,7 +126,21 @@ function formatFilenameDateTime(date: Date): string {
 
 function renderFinding(finding: AnyRecord, index: number): string {
   const id = text(finding.id, `Finding-${index + 1}`)
-  const type = text(finding.type, "UNKNOWN")
+  const classification =
+    finding.classification && typeof finding.classification === "object"
+      ? finding.classification
+      : {}
+  const selected =
+    classification.selected && typeof classification.selected === "object"
+      ? classification.selected
+      : undefined
+  const displayType = text(
+    selected?.display_type ?? classification.candidates?.[0]?.display_type,
+    "UNCLASSIFIED",
+  )
+  const cwes = asArray(finding.taxonomies)
+    .filter(item => String(item?.name ?? "").toUpperCase() === "CWE")
+    .map(item => item.id)
   const gates = finding.gates && typeof finding.gates === "object" ? finding.gates : {}
 
   const gateRows = Object.entries(gates).map(([name, value]) => {
@@ -141,9 +155,11 @@ function renderFinding(finding: AnyRecord, index: number): string {
   const humanChecks = asArray(finding.humanChecks ?? finding.human_checks)
 
   return [
-    `## ${index + 1}. ${id} - ${type}`,
+    `## ${index + 1}. ${id} - ${displayType}`,
     "",
-    `- **CWE**：${text(finding.cwe)}`,
+    `- **Classification**：${text(classification.status, "UNCLASSIFIED")}`,
+    `- **Repair Entry**：${text(selected?.repair_entry_id)}`,
+    `- **CWE**：${text(cwes)}`,
     `- **严重级别**：${text(finding.severity)}`,
     `- **最终结论**：${text(finding.verdict ?? finding.fixability)}`,
     `- **Repair Provider**：${text(finding.repairProvider ?? finding.repair_provider)}`,

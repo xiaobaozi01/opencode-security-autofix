@@ -1,30 +1,40 @@
 import { tool } from "@opencode-ai/plugin"
-import { resolveRepairEntry } from "../repair/catalog"
+import { getRepairEntry, resolveRepairEntryById } from "../repair/catalog"
 
 export const autofixRepairTool = tool({
   description:
-    "根据标准漏洞类型、语言和框架，从内置 Repair Catalog 确定领域 Repair Skill、strategy、默认可修复等级和验证要求。",
+    "根据 Classification 已选定的 repair_entry_id、语言和框架，验证 Repair Entry 适用性并返回领域 Repair Skill、strategy 和验证要求。",
   args: {
-    type: tool.schema.string().describe("标准漏洞类型，例如 SQL_INJECTION"),
+    repair_entry_id: tool.schema.string().describe("autofix_classify 选定的 Repair Entry ID"),
     language: tool.schema.string().optional().describe("已确认的语言；未知时不要猜测"),
     framework: tool.schema.string().optional().describe("已确认的框架/组件；未知时不要猜测"),
   },
   async execute(args) {
-    const entry = resolveRepairEntry(args.type, args.language, args.framework)
+    const registered = getRepairEntry(args.repair_entry_id)
+    if (!registered) {
+      return JSON.stringify({
+        status: "NOT_SUPPORTED",
+        repair_entry_id: args.repair_entry_id,
+        reason: "Repair Catalog 中不存在该 repair_entry_id",
+      })
+    }
+
+    const entry = resolveRepairEntryById(args.repair_entry_id, args.language, args.framework)
     if (!entry) {
       return JSON.stringify({
         status: "NOT_SUPPORTED",
-        type: args.type.trim().toUpperCase(),
+        repair_entry_id: registered.id,
+        display_type: registered.display_type,
         language: args.language,
         framework: args.framework,
-        reason: "Repair Catalog 中没有匹配项，禁止猜测 Repair Skill 或 strategy",
+        reason: "Repair Entry 不支持已确认的语言或框架",
       })
     }
 
     return JSON.stringify({
       status: "MATCHED",
-      catalog_entry_id: entry.id,
-      type: entry.type,
+      repair_entry_id: entry.id,
+      display_type: entry.display_type,
       name_zh: entry.name_zh,
       repair_provider: entry.provider,
       strategy: entry.strategy,

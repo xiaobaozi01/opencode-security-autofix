@@ -10,6 +10,8 @@
 .opencode/commands/security-fix.md
 .opencode/commands/security-verify.md
 .opencode/lib/security-autofix/api.ts
+.opencode/lib/security-autofix/classification/registry.ts
+.opencode/lib/security-autofix/classification/types.ts
 .opencode/lib/security-autofix/config.ts
 .opencode/lib/security-autofix/contracts.ts
 .opencode/lib/security-autofix/repair/catalog.ts
@@ -17,6 +19,7 @@
 .opencode/lib/security-autofix/report/builtin/json.adapter.ts
 .opencode/lib/security-autofix/report/builtin/sarif.adapter.ts
 .opencode/lib/security-autofix/report/builtin/text.adapter.ts
+.opencode/lib/security-autofix/report/normalize.ts
 .opencode/lib/security-autofix/report/registry.ts
 .opencode/lib/security-autofix/report/types.ts
 .opencode/lib/security-autofix/scanner/builtin/command.adapter.ts
@@ -24,6 +27,7 @@
 .opencode/lib/security-autofix/scanner/types.ts
 .opencode/lib/security-autofix/tools/build-command.ts
 .opencode/lib/security-autofix/tools/build.ts
+.opencode/lib/security-autofix/tools/classify.ts
 .opencode/lib/security-autofix/tools/repair.ts
 .opencode/lib/security-autofix/tools/report.ts
 .opencode/lib/security-autofix/tools/result.ts
@@ -40,6 +44,7 @@
 .opencode/skills/fix-xml-deserialization/SKILL.md
 .opencode/tests/build-command.test.ts
 .opencode/tests/catalog.test.ts
+.opencode/tests/classification.test.ts
 .opencode/tests/delimited.test.ts
 .opencode/tests/package.json
 .opencode/tests/report-adapters.test.ts

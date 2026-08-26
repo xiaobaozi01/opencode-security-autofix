@@ -1,4 +1,5 @@
 import type { ReportAdapter, ReportAdapterInput, ReportEnvelope } from "../types"
+import { normalizeRawFinding } from "../normalize.ts"
 
 export function parseDelimited(text: string, delimiter: string) {
   const rows: string[][] = []
@@ -61,7 +62,7 @@ export const delimitedReportAdapter: ReportAdapter = {
         format: tsv ? "tsv" : "csv",
         adapter: "delimited",
       },
-      findings: parseDelimited(input.text, tsv ? "\t" : ","),
+      findings: parseDelimited(input.text, tsv ? "\t" : ",").map(row => normalizeRawFinding(row)),
       warnings: [],
     }
   },

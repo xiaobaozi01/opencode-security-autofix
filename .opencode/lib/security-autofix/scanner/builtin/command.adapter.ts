@@ -9,7 +9,7 @@ import type {
 } from "../types"
 
 function substitute(token: string, vars: Record<string, string>) {
-  return token.replace(/\{(type|rule|findingId|output)\}/g, (_, key) => vars[key] ?? "")
+  return token.replace(/\{(repairEntryId|ruleId|findingId|output)\}/g, (_, key) => vars[key] ?? "")
 }
 
 function normalizeExtension(value: unknown) {
@@ -57,8 +57,8 @@ export const commandScannerAdapter: ScannerAdapter = {
     const extension = normalizeExtension(spec.outputExtension ?? config.outputExtension)
     const output = path.join(outDir, `${request.mode}-${Date.now()}${extension}`)
     const vars = {
-      type: request.vulnerabilityType ?? "",
-      rule: request.rule ?? "",
+      repairEntryId: request.repairEntryId ?? "",
+      ruleId: request.ruleId ?? "",
       findingId: request.findingId ?? "",
       output,
     }

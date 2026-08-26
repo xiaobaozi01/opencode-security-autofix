@@ -35,7 +35,7 @@ permission:
 
 ## A. 输入接入
 - 扫描报告统一交给 `report-analyzer`，由它完成报告解析和漏洞标准化。
-- 人工输入也必须整理成同一标准漏洞模型。
+- 人工输入也必须交给 `report-analyzer`，通过 `autofix_classify` 整理成同一标准漏洞模型。
 - 保留原始 Finding ID 和原始报告引用。
 - 去重基于**相同根因 + 相同 Sink**，不能只按 CWE 合并。
 
@@ -50,7 +50,7 @@ permission:
 
 ## C. 修复计划
 调用 `fix-planner`：
-- 通过插件 Tool `autofix_repair` 从内置 Repair Catalog 按 `type + language + framework + priority` 选择 Repair Provider；
+- 只有 Classification 为 `MATCHED` 时，才通过 `autofix_repair(repair_entry_id + language + framework)` 验证并选择 Repair Provider；
 - Provider 指向**领域 Repair Skill**，`strategy` 指向 Skill 内的具体漏洞策略；
 - 同时判断 `AUTO_FIX | AUTO_FIX_WITH_REVIEW | HUMAN_REVIEW | GUIDANCE_ONLY | NOT_SUPPORTED`；
 - 只有前两类允许进入自动修改。

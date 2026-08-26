@@ -3,8 +3,8 @@ export type ScanStatus = "EXECUTED" | "FAIL" | "NOT_RUN"
 
 export interface ScanRequest {
   mode: ScanMode
-  vulnerabilityType?: string
-  rule?: string
+  repairEntryId?: string
+  ruleId?: string
   findingId?: string
 }
 

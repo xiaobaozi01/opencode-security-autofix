@@ -33,6 +33,7 @@
 ├── tests/
 │   ├── build-command.test.ts
 │   ├── catalog.test.ts
+│   ├── classification.test.ts
 │   ├── delimited.test.ts
 │   ├── report-adapters.test.ts
 │   ├── scanner-outcome.test.ts
@@ -42,6 +43,7 @@
 │       ├── api.ts
 │       ├── config.ts
 │       ├── contracts.ts
+│       ├── classification/
 │       ├── repair/
 │       ├── report/
 │       ├── scanner/
@@ -52,6 +54,7 @@
 OpenCode 会自动加载 `.opencode/plugins/security-autofix.ts`。Plugin 对 Agent 暴露以下确定性 Tool：
 
 - `autofix_report`：扫描报告解析。
+- `autofix_classify`：根据 Rule Identity、Taxonomy 和可审计候选生成分类结果。
 - `autofix_scan`：调用扫描器重扫。
 - `autofix_build`：受限 Build/Test，支持 Maven、Gradle、Node、Python，以及命名 Target/Configuration。
 - `autofix_result`：生成最终 Markdown。
@@ -97,17 +100,23 @@ Agent 合并只减少编排复杂度，不删除安全验证 Gate。`fix-validat
 
 ## 4. Repair Skill
 
-36 类漏洞修复知识合并为 8 个领域 Skill。Repair 路由由 Plugin 内部 Catalog 完成：
+36 类漏洞修复知识合并为 8 个领域 Skill。分类与 Repair 选择是两个独立阶段：
 
 ```text
-漏洞 type + language + framework
-              ↓
-        autofix_repair
-              ↓
-        Repair Catalog
-              ↓
-领域 Repair Skill + strategy
+Scanner Rule / CWE Taxonomy / raw_type / semantic candidates
+                          ↓
+                  autofix_classify
+                          ↓
+  classification.status + selected.repair_entry_id
+                          ↓
+        autofix_repair(repair_entry_id, language, framework)
+                          ↓
+              领域 Repair Skill + strategy
 ```
+
+Matcher 优先级为 Scanner Rule、Taxonomy、扫描器原始别名、Agent 语义候选。前三类证据唯一命中时才返回 `MATCHED`；多路由同强度命中返回 `AMBIGUOUS`；只有 Agent 语义候选时返回 `HUMAN_REVIEW`，不得自动修复。
+
+新协议不兼容旧版：`StandardVulnerability.type`、`autofix_repair.type` 以及 Scanner 的 `{type}/{rule}` 占位符已删除。
 
 例如 `SQL_INJECTION` 会路由到：
 
@@ -166,7 +175,24 @@ const securityTestReportAdapter: ReportAdapter = {
         scanner: "security-test",
         adapter: "security-test",
       },
-      findings: raw.findings ?? [],
+      findings: (raw.findings ?? []).map((finding) => ({
+        original_id: finding.id,
+        rule: {
+          scanner: "security-test",
+          rule_id: finding.ruleId,
+        },
+        taxonomies: (finding.cwes ?? []).map((id) => ({
+          name: "CWE",
+          id,
+          source: "scanner",
+        })),
+        raw_type: finding.category,
+        title: finding.title,
+        description: finding.description,
+        severity: finding.severity,
+        location: finding.location,
+        raw: finding,
+      })),
       warnings: [],
     }
   },
@@ -212,6 +238,8 @@ export const CompanySecurityScannerPlugin: Plugin = async () => {
 }
 ```
 
+Targeted Scan 请求使用 `repairEntryId`、`ruleId`、`findingId`。`command` Adapter 对应支持 `{repairEntryId}`、`{ruleId}`、`{findingId}`、`{output}` 占位符。
+
 然后修改 `.opencode/security-autofix.json`：
 
 ```json
@@ -241,7 +269,11 @@ import { registerRepairEntry } from "../lib/security-autofix/api"
 export const CompanyRepairExtension: Plugin = async () => {
   registerRepairEntry({
     id: "graphql-injection.generic",
-    type: "GRAPHQL_INJECTION",
+    display_type: "GRAPHQL_INJECTION",
+    matchers: {
+      scanner_rules: [{ scanner: "company-sast", rule_id: "graphql-injection" }],
+      aliases: ["GRAPHQL_INJECTION", "GRAPHQL_INJECTION_RISK"],
+    },
     provider: "fix-injection",
     strategy: "graphql-injection",
     name_zh: "GraphQL 注入",
@@ -361,7 +393,7 @@ cd .opencode/tests
 npm test
 ```
 
-25 个测试覆盖 Build/Test 命令解析和配置合并、36 条 Repair 路由、内置报告 Adapter、CSV/TSV 和 Scanner 状态判定。
+31 个测试覆盖 Build/Test 命令解析和配置合并、36 条 Repair 路由、Rule/Taxonomy 分类、歧义与人工复核边界、内置报告 Adapter、CSV/TSV 和 Scanner 状态判定。
 
 ## 11. 使用
 

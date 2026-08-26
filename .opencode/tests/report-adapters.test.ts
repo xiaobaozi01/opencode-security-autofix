@@ -20,7 +20,10 @@ test("JSON Adapter 识别常见 findings 容器", () => {
   const result = jsonReportAdapter.parse(
     input(JSON.stringify({ scanner: "demo", findings: [{ id: "F-1" }] }), ".json"),
   )
-  assert.deepEqual(result.findings, [{ id: "F-1" }])
+  assert.equal(result.findings[0].original_id, "F-1")
+  assert.deepEqual(result.findings[0].taxonomies, [])
+  assert.equal(result.findings[0].rule?.scanner, "demo")
+  assert.deepEqual(result.findings[0].raw, { id: "F-1" })
   assert.equal(result.report.scanner, "demo")
 })
 
@@ -28,7 +31,15 @@ test("SARIF Adapter 提取规则、位置和 CWE", () => {
   const document = {
     version: "2.1.0",
     runs: [{
-      tool: { driver: { name: "demo", rules: [{ id: "R1", properties: { tags: ["CWE-89"] } }] } },
+      tool: { driver: { name: "demo", rules: [{
+        id: "R1",
+        properties: { tags: ["security"] },
+        relationships: [{
+          target: { id: "CWE-89", toolComponent: { index: 0 } },
+          kinds: ["equal"],
+        }],
+      }] } },
+      taxonomies: [{ name: "CWE", guid: "cwe-taxonomy" }],
       results: [{
         ruleId: "R1",
         level: "error",
@@ -39,18 +50,28 @@ test("SARIF Adapter 提取规则、位置和 CWE", () => {
   }
   const result = sarifReportAdapter.parse(input(JSON.stringify(document), ".sarif"))
   assert.equal(result.report.scanner, "demo")
-  assert.deepEqual(result.findings[0], {
-    original_id: undefined,
-    rule: "R1",
-    title: "SQL injection",
-    severity: "error",
+  const finding = result.findings[0]
+  assert.deepEqual(finding.rule, {
+    scanner: "demo",
+    rule_id: "R1",
+    rule_version: undefined,
+    fingerprint: undefined,
+  })
+  assert.deepEqual(finding.taxonomies, [{
+    name: "CWE",
+    id: "CWE-89",
+    relationship: "equal",
+    source: "scanner",
+  }])
+  assert.deepEqual(finding.location, {
     file: "src/db.ts",
     start_line: 7,
     end_line: undefined,
-    cwe: "CWE-89",
-    description: "SQL injection",
-    raw: document.runs[0].results[0],
   })
+  assert.equal(finding.title, "SQL injection")
+  assert.equal(finding.severity, "error")
+  assert.equal(finding.description, "SQL injection")
+  assert.deepEqual(finding.raw, document.runs[0].results[0])
 })
 
 test("Text Adapter 保留非结构化正文并发出提示", () => {

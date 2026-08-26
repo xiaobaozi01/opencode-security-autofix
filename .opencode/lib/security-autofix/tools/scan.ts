@@ -9,8 +9,8 @@ export const autofixScanTool = tool({
     "统一安全重扫入口：通过 Scanner Adapter Registry 调用配置的扫描器。扫描执行成功不等于漏洞已经修复。",
   args: {
     mode: tool.schema.enum(["targeted", "full"]),
-    type: tool.schema.string().optional().describe("标准漏洞类型，例如 SQL_INJECTION"),
-    rule: tool.schema.string().optional().describe("原扫描器 Rule ID"),
+    repairEntryId: tool.schema.string().optional().describe("Classification 选定的 Repair Entry ID"),
+    ruleId: tool.schema.string().optional().describe("原扫描器 Rule ID"),
     findingId: tool.schema.string().optional().describe("原扫描器 Finding ID"),
   },
   async execute(args, context) {
@@ -30,8 +30,8 @@ export const autofixScanTool = tool({
     const adapter = resolveScannerAdapter(scanner.adapter)
     const request: ScanRequest = {
       mode: args.mode,
-      vulnerabilityType: args.type,
-      rule: args.rule,
+      repairEntryId: args.repairEntryId,
+      ruleId: args.ruleId,
       findingId: args.findingId,
     }
 

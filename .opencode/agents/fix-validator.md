@@ -49,6 +49,7 @@ permission:
 - 优先 targeted；
 - 退出码 0 只代表扫描执行，不代表漏洞消失；
 - 有 `reportPath` 时调用 `autofix_report` 解析并比对原 Finding；
+- targeted 重扫传入原 Finding 的 `repairEntryId`、`ruleId` 和 `findingId`，不得使用旧类型字符串；
 - 原漏洞仍存在 -> `FAIL`；未配置扫描器 -> `NOT_RUN`。
 
 # Gate 5：Regression Review

@@ -1,4 +1,20 @@
-export type RawFinding = Record<string, any>
+import type { RuleIdentity, TaxonomyReference } from "../classification/types"
+
+export interface RawFinding {
+  original_id?: string
+  rule?: RuleIdentity
+  taxonomies: TaxonomyReference[]
+  raw_type?: string
+  title?: string
+  description?: string
+  severity?: string
+  location?: {
+    file?: string
+    start_line?: number
+    end_line?: number
+  }
+  raw: unknown
+}
 
 export interface ReportEnvelope {
   report: {
