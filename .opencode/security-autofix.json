@@ -1,0 +1,21 @@
+{
+  "scanner": {
+    "adapter": "command",
+    "name": "command",
+    "reportAdapter": "auto",
+    "targeted": {
+      "command": [],
+      "timeoutMs": 300000,
+      "outputExtension": ".json"
+    },
+    "full": {
+      "command": [],
+      "timeoutMs": 900000,
+      "outputExtension": ".json"
+    }
+  },
+  "results": {
+    "outputDir": "security-autofix-results",
+    "writeJsonSidecar": false
+  }
+}
