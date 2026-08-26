@@ -14,6 +14,9 @@
       "outputExtension": ".json"
     }
   },
+  "build": {
+    "targets": {}
+  },
   "results": {
     "outputDir": "security-autofix-results",
     "writeJsonSidecar": false

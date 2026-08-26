@@ -26,7 +26,6 @@
 .opencode/lib/security-autofix/tools/build.ts
 .opencode/lib/security-autofix/tools/repair.ts
 .opencode/lib/security-autofix/tools/report.ts
-.opencode/lib/security-autofix/tools/result-file.ts
 .opencode/lib/security-autofix/tools/result.ts
 .opencode/lib/security-autofix/tools/scan.ts
 .opencode/plugins/security-autofix.ts
@@ -44,7 +43,6 @@
 .opencode/tests/delimited.test.ts
 .opencode/tests/package.json
 .opencode/tests/report-adapters.test.ts
-.opencode/tests/result-file.test.ts
 .opencode/tests/scanner-outcome.test.ts
 CHANGELOG.md
 MANIFEST.txt

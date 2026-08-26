@@ -1,9 +1,11 @@
 import path from "path"
+import type { BuildConfiguration } from "./tools/build-command"
 
 export const CONFIG_RELATIVE_PATH = ".opencode/security-autofix.json"
 
 export interface SecurityAutofixConfig {
   scanner?: Record<string, any>
+  build?: BuildConfiguration
   results?: {
     outputDir?: string
     writeJsonSidecar?: boolean

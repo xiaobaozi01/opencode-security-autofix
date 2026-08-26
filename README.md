@@ -35,7 +35,6 @@
 │   ├── catalog.test.ts
 │   ├── delimited.test.ts
 │   ├── report-adapters.test.ts
-│   ├── result-file.test.ts
 │   ├── scanner-outcome.test.ts
 │   └── package.json
 ├── lib/
@@ -54,7 +53,7 @@ OpenCode 会自动加载 `.opencode/plugins/security-autofix.ts`。Plugin 对 Ag
 
 - `autofix_report`：扫描报告解析。
 - `autofix_scan`：调用扫描器重扫。
-- `autofix_build`：受限 Build/Test，支持 Maven、Gradle、Node、Python、Go 和 .NET。
+- `autofix_build`：受限 Build/Test，支持 Maven、Gradle、Node、Python，以及命名 Target/Configuration。
 - `autofix_result`：生成最终 Markdown。
 - `autofix_repair`：Repair Catalog 路由。
 
@@ -258,13 +257,98 @@ export const CompanyRepairExtension: Plugin = async () => {
 
 ## 9. Build/Test 验证
 
-`autofix_build` 默认使用 `ecosystem=auto`，按 Maven、Gradle、Node、Python、Go、.NET 的顺序检测项目。多语言仓库应由 `fix-validator` 根据已确认的代码上下文显式指定：
+`autofix_build` 使用统一请求和四个内置 Build Adapter，不再自动检测构建系统。每次调用必须在命名 Target 和显式 Adapter 之间选择一种：
 
 ```text
-ecosystem = maven | gradle | node | python | go | dotnet
+target = security-autofix.json 中配置的名称
+或
+adapter = maven | gradle | node | python
 ```
 
-针对性测试通过 `test` 参数传递：Maven 使用 `-Dtest`，Gradle 使用 `--tests`，Node 追加到测试脚本参数，Python 传给 pytest，Go 使用 `-run`，.NET 使用 `--filter`。
+公共参数包括 `action`、`cwd`、`testSelector`、`timeoutMs` 和 `env`。`action` 为 `compile | build | test`。针对性测试通过 `testSelector` 传递：Maven 使用 `-Dtest`，Gradle 使用 `--tests`，Node 追加到测试脚本参数，Python 传给 pytest。
+
+各构建系统使用独立结构化参数：
+
+| Adapter | 结构化参数 |
+|---|---|
+| Maven | `module`、`settings`、`globalSettings`、`profiles`、`properties`、`cliArgs` |
+| Gradle | `module`、`gradleUserHome`、`initScripts`、`projectProperties`、`systemProperties`、`cliArgs`、`taskArgs` |
+| Node | `packageManager`、`scripts`、`cliArgs`、`scriptArgs` |
+| Python | `executable`、`configSettings`、`pytestArgs`、`buildArgs`、`compileArgs` |
+
+### Build Target 和 Configuration
+
+稳定的项目参数应放在 `.opencode/security-autofix.json`，而不是每次调用重复传递：
+
+```json
+{
+  "build": {
+    "targets": {
+      "backend": {
+        "adapter": "maven",
+        "cwd": "backend",
+        "timeoutMs": 900000,
+        "options": {
+          "maven": {
+            "settings": "${userHome}/.m2/settings.xml",
+            "profiles": ["company"],
+            "properties": {
+              "revision": "1.2.0"
+            }
+          }
+        },
+        "configurations": {
+          "ci": {
+            "env": {
+              "CI": "true"
+            },
+            "options": {
+              "maven": {
+                "profiles": ["company", "ci"],
+                "cliArgs": ["--batch-mode"]
+              }
+            }
+          }
+        }
+      },
+      "frontend": {
+        "adapter": "node",
+        "cwd": "frontend",
+        "options": {
+          "node": {
+            "packageManager": "pnpm",
+            "scripts": {
+              "compile": "typecheck",
+              "build": "build",
+              "test": "test"
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+调用命名目标：
+
+```json
+{
+  "action": "build",
+  "target": "backend",
+  "configuration": "ci"
+}
+```
+
+配置按以下顺序合并，后者覆盖前者：
+
+```text
+Adapter 内置默认值 < Target < Configuration < 本次调用
+```
+
+`cwd` 必须位于项目工作区内。路径参数支持相对路径、绝对路径、`${workspaceFolder}`、`${userHome}` 和 `~/`。运行时附加属性使用 Tool Schema 中的 `name/value` 列表传入；项目配置文件中使用普通 JSON Object。
+
+额外参数始终使用字符串数组。Build Tool 将命令和参数直接交给进程执行，不解析整段 Shell 命令。
 
 只有检测到对应脚本或构建文件时才会执行；无法执行返回 `NOT_RUN`。
 
@@ -277,7 +361,7 @@ cd .opencode/tests
 npm test
 ```
 
-测试覆盖 Build/Test 命令解析、36 条 Repair 路由、内置报告 Adapter、CSV/TSV、多报告命名和 Scanner 状态判定。
+25 个测试覆盖 Build/Test 命令解析和配置合并、36 条 Repair 路由、内置报告 Adapter、CSV/TSV 和 Scanner 状态判定。
 
 ## 11. 使用
 

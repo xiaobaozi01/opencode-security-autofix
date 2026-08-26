@@ -35,12 +35,12 @@ permission:
 输出 `security_review: PASS | FAIL`。
 
 # Gate 2：Build
-调用 `autofix_build` 的 compile/build 能力。根据 `vuln-analyzer` 已确认的语言/构建系统传入 `ecosystem`；多语言仓库禁止依赖自动猜测。只有真实执行成功才能 `PASS`；无法运行是 `NOT_RUN`。
+调用 `autofix_build` 的 `action=compile/build` 能力。项目已在 `security-autofix.json` 配置 Build Target 时传入 `target` 和适用的 `configuration`；否则根据 `vuln-analyzer` 已确认的构建系统显式传入 `adapter`。Build Tool 不自动猜测构建系统。只有真实执行成功才能 `PASS`；无法运行是 `NOT_RUN`。
 
 # Gate 3：Test
-调用 `autofix_build` 的 test 模式：
+调用 `autofix_build` 的 `action=test`：
 - 优先针对性测试；
-- 传入与 Build 相同的 `ecosystem`，并在测试框架支持时传入 `test` 选择器；
+- 传入与 Build 相同的 `target`/`configuration` 或 `adapter`，并在测试框架支持时传入 `testSelector`；
 - 再按需要运行受影响模块测试；
 - 单独记录 `security_regression_coverage: COVERED | MISSING | NOT_APPLICABLE | UNKNOWN`。
 
