@@ -10,11 +10,11 @@
 .opencode/commands/security-fix.md
 .opencode/commands/security-verify.md
 .opencode/lib/security-autofix/api.ts
-.opencode/lib/security-autofix/classification/registry.ts
-.opencode/lib/security-autofix/classification/types.ts
 .opencode/lib/security-autofix/config.ts
 .opencode/lib/security-autofix/contracts.ts
+.opencode/lib/security-autofix/finding/types.ts
 .opencode/lib/security-autofix/repair/catalog.ts
+.opencode/lib/security-autofix/repair/router.ts
 .opencode/lib/security-autofix/report/builtin/delimited.adapter.ts
 .opencode/lib/security-autofix/report/builtin/json.adapter.ts
 .opencode/lib/security-autofix/report/builtin/sarif.adapter.ts
@@ -27,10 +27,9 @@
 .opencode/lib/security-autofix/scanner/types.ts
 .opencode/lib/security-autofix/tools/build-command.ts
 .opencode/lib/security-autofix/tools/build.ts
-.opencode/lib/security-autofix/tools/classify.ts
-.opencode/lib/security-autofix/tools/repair.ts
 .opencode/lib/security-autofix/tools/report.ts
 .opencode/lib/security-autofix/tools/result.ts
+.opencode/lib/security-autofix/tools/route.ts
 .opencode/lib/security-autofix/tools/scan.ts
 .opencode/plugins/security-autofix.ts
 .opencode/security-autofix.json
@@ -44,10 +43,10 @@
 .opencode/skills/fix-xml-deserialization/SKILL.md
 .opencode/tests/build-command.test.ts
 .opencode/tests/catalog.test.ts
-.opencode/tests/classification.test.ts
 .opencode/tests/delimited.test.ts
 .opencode/tests/package.json
 .opencode/tests/report-adapters.test.ts
+.opencode/tests/routing.test.ts
 .opencode/tests/scanner-outcome.test.ts
 CHANGELOG.md
 MANIFEST.txt

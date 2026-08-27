@@ -126,16 +126,12 @@ function formatFilenameDateTime(date: Date): string {
 
 function renderFinding(finding: AnyRecord, index: number): string {
   const id = text(finding.id, `Finding-${index + 1}`)
-  const classification =
-    finding.classification && typeof finding.classification === "object"
-      ? finding.classification
+  const route =
+    finding.route && typeof finding.route === "object"
+      ? finding.route
       : {}
-  const selected =
-    classification.selected && typeof classification.selected === "object"
-      ? classification.selected
-      : undefined
   const displayType = text(
-    selected?.display_type ?? classification.candidates?.[0]?.display_type,
+    route.display_type ?? route.candidates?.[0]?.display_type,
     "UNCLASSIFIED",
   )
   const cwes = asArray(finding.taxonomies)
@@ -157,8 +153,8 @@ function renderFinding(finding: AnyRecord, index: number): string {
   return [
     `## ${index + 1}. ${id} - ${displayType}`,
     "",
-    `- **Classification**：${text(classification.status, "UNCLASSIFIED")}`,
-    `- **Repair Entry**：${text(selected?.repair_entry_id)}`,
+    `- **Repair Route**：${text(route.status, "UNCLASSIFIED")}`,
+    `- **Repair Entry**：${text(route.repair_entry_id)}`,
     `- **CWE**：${text(cwes)}`,
     `- **严重级别**：${text(finding.severity)}`,
     `- **最终结论**：${text(finding.verdict ?? finding.fixability)}`,

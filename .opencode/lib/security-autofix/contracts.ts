@@ -1,8 +1,8 @@
 import type {
-  FindingClassification,
   RuleIdentity,
+  SemanticRouteCandidate,
   TaxonomyReference,
-} from "./classification/types"
+} from "./finding/types"
 
 export type Severity = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "INFO" | "UNKNOWN"
 export type Confidence = "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN"
@@ -12,7 +12,7 @@ export interface StandardVulnerability {
   rule?: RuleIdentity
   taxonomies: TaxonomyReference[]
   raw_type?: string
-  classification: FindingClassification
+  semantic_candidates?: SemanticRouteCandidate[]
   severity: Severity
   confidence: Confidence
   title?: string

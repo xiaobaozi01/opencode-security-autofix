@@ -1,4 +1,4 @@
-import type { TaxonomyReference } from "../../classification/types"
+import type { TaxonomyReference } from "../../finding/types"
 import type { ReportAdapter, ReportAdapterInput, ReportEnvelope } from "../types"
 
 function tryJson(text: string): any | undefined {

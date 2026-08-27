@@ -5,7 +5,6 @@ import test from "node:test"
 import { fileURLToPath } from "node:url"
 import {
   listRepairEntries,
-  resolveRepairEntryById,
 } from "../lib/security-autofix/repair/catalog.ts"
 
 test("36 条内置 Repair 路由保持完整", () => {
@@ -19,24 +18,4 @@ test("每条 Repair 路由都能找到对应 Skill strategy", async () => {
     assert.ok(content.includes("Strategy: `" + entry.strategy + "`"), entry.id)
     assert.ok(entry.matchers?.aliases?.includes(entry.display_type), entry.id)
   }
-})
-
-test("repair_entry_id 路由支持常见语言别名", () => {
-  assert.equal(resolveRepairEntryById("sql-injection.generic", "Node.js")?.id, "sql-injection.generic")
-  assert.equal(resolveRepairEntryById("sql-injection.generic", "C#")?.id, "sql-injection.generic")
-  assert.equal(
-    resolveRepairEntryById("dependency-vulnerability.generic", "Golang")?.id,
-    "dependency-vulnerability.generic",
-  )
-})
-
-test("常见框架别名被规范化", () => {
-  assert.equal(
-    resolveRepairEntryById("jwt-security.generic", "Java", "Spring Security")?.id,
-    "jwt-security.generic",
-  )
-  assert.equal(
-    resolveRepairEntryById("dependency-vulnerability.generic", "Go", "go.mod")?.id,
-    "dependency-vulnerability.generic",
-  )
 })

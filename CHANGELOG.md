@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## Repair 路由收敛版本
+
+- 删除独立 `autofix_classify` 和 `autofix_repair`，收敛为单一 `autofix_route` Tool。
+- `report-analyzer` 只输出 Scanner 事实和可审计 `semantic_candidates`，不再决定分类或 Repair Entry。
+- `fix-planner` 将 Finding 证据、语言和框架一次传入 Router，直接获取 Provider/strategy。
+- 删除 `100/80/60/45` 人为评分，改为 Scanner Rule -> Taxonomy -> Alias 的明确优先级。
+- Repair Entry 同步删除已无意义的 `priority` 字段；Report Adapter 的解析优先级不受影响。
+- 仅有模型语义候选时仍强制 `HUMAN_REVIEW`，不输出可自动修复的 `repair_entry_id`。
+- 不保留上一版 Classification/Repair Tool 兼容入口。
+- 自动化测试扩展到 32 个。
+
 ## Finding 分类协议重构版本
 
 - 参考 SARIF 的 Rule Identity 和 Taxonomy 建模，将扫描器事实、分类判断与 Repair 路由拆分。

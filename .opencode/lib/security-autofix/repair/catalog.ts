@@ -16,7 +16,6 @@ export interface RepairEntry {
   provider: string
   strategy: string
   name_zh?: string
-  priority: number
   supported_languages: string[]
   supported_frameworks: string[]
   default_fixability: Fixability
@@ -108,7 +107,6 @@ const entries: RepairEntry[] = [
     "display_type": "SQL_INJECTION",
     "provider": "fix-injection",
     "name_zh": "SQL 注入",
-    "priority": 100,
     "supported_languages": [
       "java",
       "python",
@@ -136,7 +134,6 @@ const entries: RepairEntry[] = [
     "display_type": "NOSQL_INJECTION",
     "provider": "fix-injection",
     "name_zh": "NoSQL 注入",
-    "priority": 100,
     "supported_languages": [
       "java",
       "python",
@@ -161,7 +158,6 @@ const entries: RepairEntry[] = [
     "display_type": "COMMAND_INJECTION",
     "provider": "fix-injection",
     "name_zh": "命令注入",
-    "priority": 100,
     "supported_languages": [
       "java",
       "python",
@@ -186,7 +182,6 @@ const entries: RepairEntry[] = [
     "display_type": "TEMPLATE_INJECTION",
     "provider": "fix-injection",
     "name_zh": "模板注入（SSTI）",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -208,7 +203,6 @@ const entries: RepairEntry[] = [
     "display_type": "EXPRESSION_INJECTION",
     "provider": "fix-injection",
     "name_zh": "表达式注入",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -230,7 +224,6 @@ const entries: RepairEntry[] = [
     "display_type": "XXE",
     "provider": "fix-xml-deserialization",
     "name_zh": "XML 外部实体（XXE）",
-    "priority": 100,
     "supported_languages": [
       "java",
       "python"
@@ -253,7 +246,6 @@ const entries: RepairEntry[] = [
     "display_type": "XPATH_INJECTION",
     "provider": "fix-injection",
     "name_zh": "XPath 注入",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -275,7 +267,6 @@ const entries: RepairEntry[] = [
     "display_type": "LDAP_INJECTION",
     "provider": "fix-injection",
     "name_zh": "LDAP 注入",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -297,7 +288,6 @@ const entries: RepairEntry[] = [
     "display_type": "XML_INJECTION",
     "provider": "fix-xml-deserialization",
     "name_zh": "XML 注入",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -319,7 +309,6 @@ const entries: RepairEntry[] = [
     "display_type": "DDE_INJECTION",
     "provider": "fix-xml-deserialization",
     "name_zh": "DDE/公式注入",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -341,7 +330,6 @@ const entries: RepairEntry[] = [
     "display_type": "UNSAFE_DESERIALIZATION",
     "provider": "fix-xml-deserialization",
     "name_zh": "不安全反序列化",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -363,7 +351,6 @@ const entries: RepairEntry[] = [
     "display_type": "OPEN_REDIRECT",
     "provider": "fix-web-security",
     "name_zh": "开放重定向",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -385,7 +372,6 @@ const entries: RepairEntry[] = [
     "display_type": "PATH_TRAVERSAL",
     "provider": "fix-request-security",
     "name_zh": "路径遍历",
-    "priority": 100,
     "supported_languages": [
       "java",
       "python",
@@ -411,7 +397,6 @@ const entries: RepairEntry[] = [
     "display_type": "ZIP_SLIP",
     "provider": "fix-request-security",
     "name_zh": "Zip Slip",
-    "priority": 100,
     "supported_languages": [
       "java",
       "python",
@@ -437,7 +422,6 @@ const entries: RepairEntry[] = [
     "display_type": "JNDI_INJECTION",
     "provider": "fix-injection",
     "name_zh": "JNDI 注入",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -459,7 +443,6 @@ const entries: RepairEntry[] = [
     "display_type": "UNSAFE_REFLECTION",
     "provider": "fix-code-security",
     "name_zh": "不安全反射",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -481,7 +464,6 @@ const entries: RepairEntry[] = [
     "display_type": "XSS",
     "provider": "fix-web-security",
     "name_zh": "跨站脚本（XSS）",
-    "priority": 100,
     "supported_languages": [
       "java",
       "javascript",
@@ -505,7 +487,6 @@ const entries: RepairEntry[] = [
     "display_type": "SSRF",
     "provider": "fix-request-security",
     "name_zh": "服务端请求伪造（SSRF）",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -527,7 +508,6 @@ const entries: RepairEntry[] = [
     "display_type": "UNSAFE_FILE_UPLOAD",
     "provider": "fix-request-security",
     "name_zh": "不安全文件上传",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -549,7 +529,6 @@ const entries: RepairEntry[] = [
     "display_type": "WEAK_CRYPTO",
     "provider": "fix-crypto-secret",
     "name_zh": "弱密码学",
-    "priority": 100,
     "supported_languages": [
       "java",
       "python",
@@ -578,7 +557,6 @@ const entries: RepairEntry[] = [
     "display_type": "TLS_TRUST_ALL",
     "provider": "fix-crypto-secret",
     "name_zh": "TLS 证书/主机名校验绕过",
-    "priority": 100,
     "supported_languages": [
       "java",
       "python",
@@ -605,7 +583,6 @@ const entries: RepairEntry[] = [
     "display_type": "CORS_MISCONFIGURATION",
     "provider": "fix-web-security",
     "name_zh": "CORS_MISCONFIGURATION",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -631,7 +608,6 @@ const entries: RepairEntry[] = [
     "display_type": "COOKIE_SECURITY",
     "provider": "fix-auth-security",
     "name_zh": "Cookie 安全配置",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -656,7 +632,6 @@ const entries: RepairEntry[] = [
     "display_type": "HARDCODED_SECRET",
     "provider": "fix-crypto-secret",
     "name_zh": "硬编码 Secret",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -678,7 +653,6 @@ const entries: RepairEntry[] = [
     "display_type": "SENSITIVE_LOGGING",
     "provider": "fix-crypto-secret",
     "name_zh": "敏感信息日志泄露",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -700,7 +674,6 @@ const entries: RepairEntry[] = [
     "display_type": "REDOS",
     "provider": "fix-code-security",
     "name_zh": "正则表达式拒绝服务（ReDoS）",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -722,7 +695,6 @@ const entries: RepairEntry[] = [
     "display_type": "CSRF",
     "provider": "fix-web-security",
     "name_zh": "跨站请求伪造（CSRF）",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -748,7 +720,6 @@ const entries: RepairEntry[] = [
     "display_type": "MASS_ASSIGNMENT",
     "provider": "fix-auth-security",
     "name_zh": "Mass Assignment / Over-posting",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -770,7 +741,6 @@ const entries: RepairEntry[] = [
     "display_type": "SECURITY_HEADERS",
     "provider": "fix-web-security",
     "name_zh": "安全响应头缺失/弱配置",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -792,7 +762,6 @@ const entries: RepairEntry[] = [
     "display_type": "CRLF_INJECTION",
     "provider": "fix-web-security",
     "name_zh": "CRLF_INJECTION",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -814,7 +783,6 @@ const entries: RepairEntry[] = [
     "display_type": "HOST_HEADER_INJECTION",
     "provider": "fix-web-security",
     "name_zh": "Host Header 注入",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -836,7 +804,6 @@ const entries: RepairEntry[] = [
     "display_type": "JWT_SECURITY",
     "provider": "fix-auth-security",
     "name_zh": "JWT 安全问题",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -862,7 +829,6 @@ const entries: RepairEntry[] = [
     "display_type": "IDOR",
     "provider": "fix-auth-security",
     "name_zh": "IDOR",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -880,7 +846,6 @@ const entries: RepairEntry[] = [
     "display_type": "BOLA",
     "provider": "fix-auth-security",
     "name_zh": "BOLA",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -898,7 +863,6 @@ const entries: RepairEntry[] = [
     "display_type": "BROKEN_FUNCTION_LEVEL_AUTHORIZATION",
     "provider": "fix-auth-security",
     "name_zh": "BROKEN_FUNCTION_LEVEL_AUTHORIZATION",
-    "priority": 100,
     "supported_languages": [
       "*"
     ],
@@ -916,7 +880,6 @@ const entries: RepairEntry[] = [
     "display_type": "DEPENDENCY_VULNERABILITY",
     "provider": "fix-dependency-config",
     "name_zh": "第三方依赖漏洞",
-    "priority": 100,
     "supported_languages": [
       "java",
       "python",
@@ -998,17 +961,11 @@ function supports(values: string[], actual: string | undefined) {
   return normalized.includes("*") || normalized.includes(actual)
 }
 
-export function getRepairEntry(id: string) {
-  const targetId = id.trim()
-  return entries.find(entry => entry.id === targetId)
-}
-
-export function resolveRepairEntryById(id: string, language?: string, framework?: string) {
+export function repairEntrySupports(entry: RepairEntry, language?: string, framework?: string) {
   const targetLanguage = normalize(language, languageAliases)
   const targetFramework = normalize(framework, frameworkAliases)
-  const entry = getRepairEntry(id)
-  if (!entry) return undefined
-  if (!supports(entry.supported_languages, targetLanguage)) return undefined
-  if (!supports(entry.supported_frameworks, targetFramework)) return undefined
-  return entry
+  return (
+    supports(entry.supported_languages, targetLanguage) &&
+    supports(entry.supported_frameworks, targetFramework)
+  )
 }

@@ -24,20 +24,19 @@ export type {
 export {
   registerRepairEntry,
   listRepairEntries,
-  getRepairEntry,
-  resolveRepairEntryById,
 } from "./repair/catalog"
 export type { Fixability, RepairEntry } from "./repair/catalog"
 
-export { classifyFinding, listSupportedDisplayTypes } from "./classification/registry"
+export { routeFinding } from "./repair/router"
 export type {
-  ClassificationCandidate,
-  ClassificationConfidence,
-  ClassificationInput,
-  ClassificationMatchKind,
-  ClassificationStatus,
-  FindingClassification,
+  RepairMatchKind,
+  RepairRouteCandidate,
+  RepairRouteInput,
+  RepairRouteResult,
+  RepairRouteStatus,
+} from "./repair/router"
+export type {
   RuleIdentity,
-  SemanticClassificationCandidate,
+  SemanticRouteCandidate,
   TaxonomyReference,
-} from "./classification/types"
+} from "./finding/types"

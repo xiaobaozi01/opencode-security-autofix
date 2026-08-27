@@ -1,4 +1,4 @@
-import type { TaxonomyReference } from "../classification/types"
+import type { TaxonomyReference } from "../finding/types"
 import type { RawFinding } from "./types"
 
 function first(raw: Record<string, any>, names: string[]) {
@@ -23,7 +23,7 @@ function relationship(value: unknown): TaxonomyReference["relationship"] {
 }
 
 function taxonomySource(value: unknown): TaxonomyReference["source"] {
-  return ["scanner", "adapter", "classifier"].includes(String(value))
+  return ["scanner", "adapter", "analyzer"].includes(String(value))
     ? value as TaxonomyReference["source"]
     : "scanner"
 }

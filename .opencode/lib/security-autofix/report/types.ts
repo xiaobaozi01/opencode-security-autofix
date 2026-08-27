@@ -1,4 +1,4 @@
-import type { RuleIdentity, TaxonomyReference } from "../classification/types"
+import type { RuleIdentity, TaxonomyReference } from "../finding/types"
 
 export interface RawFinding {
   original_id?: string
