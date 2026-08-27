@@ -1,6 +1,6 @@
 import {
   listRepairEntries,
-  repairEntrySupports,
+  repairEntryApplicability,
   type RepairEntry,
 } from "./catalog.ts"
 import type {
@@ -15,10 +15,14 @@ export type RepairRouteStatus =
   | "UNCLASSIFIED"
   | "NOT_SUPPORTED"
   | "HUMAN_REVIEW"
+  | "FALSE_POSITIVE"
+
+export type AnalysisVerdict = "VULNERABLE" | "NOT_VULNERABLE" | "PARTIAL" | "NEED_CONTEXT"
 
 export type RepairMatchKind = "SCANNER_RULE" | "TAXONOMY" | "ALIAS" | "SEMANTIC"
 
 export interface RepairRouteInput {
+  analysis_verdict: AnalysisVerdict
   rule?: RuleIdentity
   taxonomies?: TaxonomyReference[]
   raw_type?: string
@@ -91,8 +95,19 @@ function deterministicResult(
 ): RepairRouteResult {
   const routeCandidates = candidates(matches, matchedBy)
   const applicable = matches.filter(match =>
-    repairEntrySupports(match.entry, input.language, input.framework),
+    repairEntryApplicability(match.entry, input.language, input.framework) === "SUPPORTED",
   )
+  const unconfirmed = matches.filter(match =>
+    repairEntryApplicability(match.entry, input.language, input.framework) === "UNCONFIRMED",
+  )
+
+  if (unconfirmed.length) {
+    return {
+      status: "HUMAN_REVIEW",
+      candidates: candidates([...applicable, ...unconfirmed], matchedBy),
+      reason: "缺少确认 Repair Entry 适用性所需的语言或框架事实",
+    }
+  }
 
   if (!applicable.length) {
     return {
@@ -127,6 +142,23 @@ function deterministicResult(
 }
 
 export function routeFinding(input: RepairRouteInput): RepairRouteResult {
+  if (input.analysis_verdict === "NOT_VULNERABLE") {
+    return {
+      status: "FALSE_POSITIVE",
+      candidates: [],
+      reason: "漏洞真实性分析结论为 NOT_VULNERABLE，禁止进入修复路由",
+    }
+  }
+  if (input.analysis_verdict !== "VULNERABLE") {
+    return {
+      status: "HUMAN_REVIEW",
+      candidates: [],
+      reason: input.analysis_verdict
+        ? `漏洞真实性分析结论为 ${input.analysis_verdict}，禁止自动修改`
+        : "缺少漏洞真实性分析结论，禁止自动修改",
+    }
+  }
+
   const entries = listRepairEntries()
   const scanner = input.rule?.scanner?.trim().toLowerCase()
   const ruleId = input.rule?.rule_id?.trim().toLowerCase()
@@ -143,9 +175,20 @@ export function routeFinding(input: RepairRouteInput): RepairRouteResult {
     if (matches.length) return deterministicResult(matches, "SCANNER_RULE", input)
   }
 
-  if (input.taxonomies?.length) {
+  const trustedTaxonomies = input.taxonomies?.filter(taxonomy =>
+    (taxonomy.source === "scanner" || taxonomy.source === "adapter") &&
+    (taxonomy.relationship === undefined ||
+      taxonomy.relationship === "equal" ||
+      taxonomy.relationship === "subset"),
+  ) ?? []
+  const untrustedTaxonomies = input.taxonomies?.filter(taxonomy =>
+    !trustedTaxonomies.includes(taxonomy),
+  ) ?? []
+  let untrustedTaxonomyMatches: EntryMatch[] = []
+
+  if (trustedTaxonomies.length) {
     const matches = collectMatches(entries, entry =>
-      input.taxonomies
+      trustedTaxonomies
         ?.filter(taxonomy => entry.matchers?.taxonomies?.some(matcher =>
           normalizedTaxonomy(matcher.name) === normalizedTaxonomy(taxonomy.name) &&
           normalizedTaxonomy(matcher.id) === normalizedTaxonomy(taxonomy.id),
@@ -153,6 +196,17 @@ export function routeFinding(input: RepairRouteInput): RepairRouteResult {
         .map(taxonomy => `${taxonomy.name}:${taxonomy.id}`) ?? [],
     )
     if (matches.length) return deterministicResult(matches, "TAXONOMY", input)
+  }
+
+  if (untrustedTaxonomies.length) {
+    untrustedTaxonomyMatches = collectMatches(entries, entry =>
+      untrustedTaxonomies
+        .filter(taxonomy => entry.matchers?.taxonomies?.some(matcher =>
+          normalizedTaxonomy(matcher.name) === normalizedTaxonomy(taxonomy.name) &&
+          normalizedTaxonomy(matcher.id) === normalizedTaxonomy(taxonomy.id),
+        ))
+        .map(taxonomy => `${taxonomy.name}:${taxonomy.id}:${taxonomy.source}:${taxonomy.relationship ?? "unspecified"}`),
+    )
   }
 
   const rawType = normalizedLabel(input.raw_type)
@@ -175,7 +229,7 @@ export function routeFinding(input: RepairRouteInput): RepairRouteResult {
     )
     if (matches.length) {
       const applicable = matches.filter(match =>
-        repairEntrySupports(match.entry, input.language, input.framework),
+        repairEntryApplicability(match.entry, input.language, input.framework) !== "UNSUPPORTED",
       )
       return applicable.length
         ? {
@@ -188,6 +242,14 @@ export function routeFinding(input: RepairRouteInput): RepairRouteResult {
             candidates: candidates(matches, "SEMANTIC"),
             reason: "语义候选对应的 Repair Entry 不支持已确认的语言或框架",
           }
+    }
+  }
+
+  if (untrustedTaxonomyMatches.length) {
+    return {
+      status: "HUMAN_REVIEW",
+      candidates: candidates(untrustedTaxonomyMatches, "TAXONOMY"),
+      reason: "Taxonomy 来源或关系不足以支持确定性 Repair 路由",
     }
   }
 

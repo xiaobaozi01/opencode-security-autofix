@@ -15,7 +15,8 @@ $ARGUMENTS
 3. 对每条漏洞判断可修复性。
 4. 只自动修复 `AUTO_FIX` 和 `AUTO_FIX_WITH_REVIEW`。
 5. 修改同一文件/方法的 Patch 必须串行。
-6. 每个 Patch Batch 都必须独立完成 统一 fix-validator 中的 Security Review、Build、Test、Rescan 和 Regression Review。
-7. 最终汇总接受、拒绝、人工审核、仅建议和不支持的漏洞。
+6. 每个 Patch Batch 修改前必须快照计划文件并确认基线 Finding 为 `PRESENT`，修改后独立完成统一 fix-validator 中的 Security Review、Build、Test、确定性 Rescan Compare 和 Regression Review。
+7. 只有 `FIX_ACCEPTED` 的 Batch 可以保留；`FIX_REJECTED | HUMAN_REVIEW` 必须回滚，禁止叠加失败补丁。
+8. 最终汇总接受、拒绝、人工审核、仅建议和不支持的漏洞。
 
 流程结束后必须调用 `result-reporter`，在 `security-autofix-results/` 下生成本次任务唯一的一份 Markdown 总报告，并向用户返回报告路径。

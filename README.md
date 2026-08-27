@@ -56,7 +56,9 @@ OpenCode 会自动加载 `.opencode/plugins/security-autofix.ts`。Plugin 对 Ag
 - `autofix_report`：扫描报告解析。
 - `autofix_route`：根据 Finding 证据、语言和框架一次返回 Repair Provider/strategy。
 - `autofix_scan`：调用扫描器重扫。
+- `autofix_compare`：使用稳定 Finding 身份比较修复前基线和修复后报告。
 - `autofix_build`：列出或执行项目配置的命名 Build/Test Task。
+- `autofix_patch`：管理 Patch Batch 快照、封存、接受和回滚。
 - `autofix_result`：生成最终 Markdown。
 
 `.opencode/lib/security-autofix/` 是 Plugin 私有运行时实现，不需要 Agent 直接读取。
@@ -86,16 +88,24 @@ vuln-analyzer
     ↓
 fix-planner
     ↓
+fix-validator (preflight + baseline)
+    ↓
+autofix_patch begin
+    ↓
 code-fixer
     ↓
-fix-validator
+autofix_patch seal
+    ↓
+fix-validator (post_patch)
     ↓
 final-judge
+    ↓
+autofix_patch accept / rollback
     ↓
 result-reporter
 ```
 
-Agent 合并只减少编排复杂度，不删除安全验证 Gate。`fix-validator` 内仍分别记录 Security Review、Build、Test、Targeted Rescan 和 Regression Review。
+Agent 合并只减少编排复杂度，不删除安全验证 Gate。`fix-validator` 修改前确认基线 Finding，修改后分别记录 Security Review、Build、Test、Targeted Rescan Compare 和 Regression Review。只有接受的 Patch Batch 会保留在工作区。
 
 ## 4. Repair Skill
 
@@ -104,6 +114,7 @@ Agent 合并只减少编排复杂度，不删除安全验证 Gate。`fix-validat
 ```text
 Report Adapter 提取的 Rule / Taxonomy / raw_type
           + Agent semantic_candidates
+          + analysis_verdict
           + 已确认的 language / framework
                           ↓
                     autofix_route
@@ -111,7 +122,7 @@ Report Adapter 提取的 Rule / Taxonomy / raw_type
       status + repair_entry_id + provider + strategy
 ```
 
-Router 不使用人为数字评分，而是按 Scanner Rule -> Taxonomy -> 扫描器原始 Alias 的显式优先级处理。同一级多路由命中返回 `AMBIGUOUS`；只有 Agent 语义候选时返回 `HUMAN_REVIEW`，不得自动修复。
+Router 不使用人为数字评分，而是按 Scanner Rule -> 可信 Taxonomy -> 扫描器原始 Alias 的显式优先级处理。只有 `VULNERABLE` 能进入自动路由；`NOT_VULNERABLE` 返回 `FALSE_POSITIVE`，`PARTIAL | NEED_CONTEXT` 返回 `HUMAN_REVIEW`。`source=analyzer` 或 `relationship=relevant|superset` 的 Taxonomy 不具备确定性路由权限。同一级多路由命中返回 `AMBIGUOUS`；只有 Agent 语义候选时返回 `HUMAN_REVIEW`。
 
 新协议不兼容上一版：`autofix_classify`、`autofix_repair` 和 `StandardVulnerability.classification` 已删除；Agent 与扩展必须使用 `autofix_route` 和 `semantic_candidates`。
 
@@ -132,7 +143,7 @@ strategy = sql-injection
 .opencode/security-autofix.json
 ```
 
-默认内容已经包含 Scanner 和结果目录配置。没有配置真实扫描命令时，Rescan 返回 `NOT_RUN`，不会伪造 `PASS`。
+默认内容已经包含 Scanner 和结果目录配置。没有配置真实扫描命令时，Preflight 返回 `NOT_RUN` 并阻止自动修改，不会伪造 `PASS`。
 
 结果报告默认写入：
 
@@ -143,6 +154,10 @@ security-autofix-results/
 
 报告正文时间使用 `YYYY-MM-DD HH:mm:ss`，文件名强制由 Tool 使用运行机器本地时间生成，调用方不能指定文件名。
 同一秒内并发生成报告时不会覆盖已有文件，后续报告会追加 `-01`、`-02` 等序号。
+
+自动修改使用绑定稳定 `finding_key` 的 Patch Batch。`begin` 快照计划文件，`seal` 固定验证对象，最终只有 `FIX_ACCEPTED` 调用 `accept`；`FIX_REJECTED | HUMAN_REVIEW` 调用 `rollback`。Accept/Rollback 会生成本地 Receipt，`autofix_result` 必须核验真实 `batch_id + finding_key + status` 后才写报告。
+
+最终裁决硬规则：任一必要 Gate 失败或 Rescan 为 `PRESENT` 时必须拒绝；没有失败但存在 `NOT_RUN | UNKNOWN | INDETERMINATE | WARN` 时必须人工审核；只有全部必要 Gate 为 `PASS`、Rescan 为 `ABSENT`、Route 为 `MATCHED` 且 Patch Receipt 为 `ACCEPTED` 时才能报告 `FIX_ACCEPTED`。`VERIFY` 模式验证已有补丁时使用 `patch_batch.status=EXISTING`。
 
 ## 6. Report Adapter 扩展
 
@@ -236,6 +251,8 @@ export const CompanySecurityScannerPlugin: Plugin = async () => {
 ```
 
 Targeted Scan 请求使用 `repairEntryId`、`ruleId`、`findingId`。`command` Adapter 对应支持 `{repairEntryId}`、`{ruleId}`、`{findingId}`、`{output}` 占位符。
+
+自动修复必须在修改前保存基线扫描报告，修改后使用 `autofix_compare` 比较。只有修复前基线为 `PRESENT`，并且修复后基于稳定 Fingerprint 得到 `ABSENT`，Rescan Gate 才能通过。弱 Finding ID 或位置在重扫中消失只能得到 `INDETERMINATE`。
 
 然后修改 `.opencode/security-autofix.json`：
 
@@ -354,7 +371,7 @@ cd .opencode/tests
 npm test
 ```
 
-32 个测试覆盖 Build Task 列举、argv 参数插入、路径/环境/超时校验、36 条 Repair Entry、Rule/Taxonomy/Alias 路由优先级、歧义与人工复核边界、内置报告 Adapter、CSV/TSV 和 Scanner 状态判定。
+48 个测试覆盖 Build Task、Patch Batch 回滚与冲突保护及 Receipt 校验、Finding 基线/重扫比较、最终裁决硬校验、36 条 Repair Entry、Rule/Taxonomy/Alias 路由优先级、真实性与 Taxonomy 信任边界、内置报告 Adapter、CSV/TSV 和 Scanner 状态判定。
 
 ## 11. 使用
 

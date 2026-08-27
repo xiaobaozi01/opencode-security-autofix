@@ -1,7 +1,6 @@
 import { tool } from "@opencode-ai/plugin"
 import path from "path"
-import { resolveReportAdapter } from "../report/registry"
-import type { ReportAdapterInput } from "../report/types"
+import { loadReport } from "../report/load"
 
 export const autofixReportTool = tool({
   description:
@@ -19,35 +18,6 @@ export const autofixReportTool = tool({
   },
   async execute(args, context) {
     const root = path.resolve(context.worktree)
-    const abs = path.resolve(root, args.file)
-    if (!abs.startsWith(root + path.sep) && abs !== root) {
-      throw new Error("安全报告必须位于当前项目 Worktree 内")
-    }
-
-    const file = Bun.file(abs)
-    if (!(await file.exists())) throw new Error(`未找到安全报告：${args.file}`)
-
-    const bytes = new Uint8Array(await file.arrayBuffer())
-    const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes)
-    const input: ReportAdapterInput = {
-      filePath: args.file,
-      absolutePath: abs,
-      extension: path.extname(abs).toLowerCase(),
-      formatHint: args.format,
-      bytes,
-      text,
-    }
-
-    const selected = await resolveReportAdapter(input, args.adapter)
-    const result = await selected.parse(input)
-
-    return JSON.stringify({
-      ...result,
-      report: {
-        ...result.report,
-        path: result.report?.path ?? args.file,
-        adapter: selected.id,
-      },
-    })
+    return JSON.stringify(await loadReport(root, args.file, args.format, args.adapter))
   },
 })

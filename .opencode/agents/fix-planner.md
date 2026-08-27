@@ -20,7 +20,7 @@ permission:
 
 ## Repair Provider 路由
 统一调用一次 `autofix_route`：
-1. 原样传入 Finding 的 `rule`、`taxonomies`、`raw_type` 和 `semantic_candidates`。
+1. 原样传入 `vuln-analyzer` 的 `analysis_verdict` 及 Finding 的 `rule`、`taxonomies`、`raw_type` 和 `semantic_candidates`。
 2. 同时传入 `vuln-analyzer` 已确认的 language/framework；未知信息不得猜测。
 3. Tool 按 Scanner Rule -> Taxonomy -> 原始 Alias 的明确优先级匹配 Catalog，并验证语言/框架适用性。
 4. 只有 `MATCHED` 才能使用 Tool 返回的 `repair_entry_id`、`repair_provider` 和 `strategy`。
@@ -29,6 +29,7 @@ permission:
 
 Route 非 `MATCHED` 时：
 - `AMBIGUOUS | HUMAN_REVIEW` -> `HUMAN_REVIEW`；
+- `FALSE_POSITIVE` -> `FALSE_POSITIVE`；
 - `UNCLASSIFIED` -> `GUIDANCE_ONLY` 或 `HUMAN_REVIEW`；
 - `NOT_SUPPORTED` -> `NOT_SUPPORTED`。
 
@@ -53,6 +54,7 @@ IDOR/BOLA、租户边界、未知业务权限模型、复杂加密迁移等通�
 - `route`
 - `matched_language`, `matched_framework`
 - `files`, `changes`
+- 完整 `patch_files`；必须覆盖计划修改和新增的源码、配置与测试文件，供 Patch Batch 修改前快照
 - `security_invariant`
 - `behavior_constraints`
 - `tests_to_add_or_update`

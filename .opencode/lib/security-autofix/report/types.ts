@@ -1,7 +1,10 @@
+import type { FindingIdentityStrength } from "../finding/identity"
 import type { RuleIdentity, TaxonomyReference } from "../finding/types"
 
 export interface RawFinding {
   original_id?: string
+  finding_key?: string
+  finding_key_strength?: FindingIdentityStrength
   rule?: RuleIdentity
   taxonomies: TaxonomyReference[]
   raw_type?: string
@@ -12,6 +15,7 @@ export interface RawFinding {
     file?: string
     start_line?: number
     end_line?: number
+    method?: string
   }
   raw: unknown
 }

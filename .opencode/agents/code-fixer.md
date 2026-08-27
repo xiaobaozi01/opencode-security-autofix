@@ -24,6 +24,7 @@ permission:
 3. 如果代码事实与 Provider/strategy 适用条件冲突，返回 `PLAN_INVALIDATED`，不得擅自重规划。
 4. 只修改修复根因所需文件和直接覆盖漏洞的少量回归测试。
 5. 优先复用项目现有安全组件、编码风格和配置。
+6. 只能修改 FixPlan `patch_files` 中的路径；需要额外文件时返回 `PLAN_INVALIDATED`，不得先修改再补报。
 
 ## 禁止
 - 无关重构、格式化、变量改名；
@@ -37,6 +38,7 @@ permission:
 - `repair_provider`
 - `strategy`
 - 修改文件
+- 实际修改文件；必须与 Patch Batch 计划文件核对
 - Diff 摘要
 - 安全不变量
 - 新增/更新测试

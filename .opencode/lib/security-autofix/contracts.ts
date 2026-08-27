@@ -3,12 +3,15 @@ import type {
   SemanticRouteCandidate,
   TaxonomyReference,
 } from "./finding/types"
+import type { FindingIdentityStrength } from "./finding/identity"
 
 export type Severity = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "INFO" | "UNKNOWN"
 export type Confidence = "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN"
 
 export interface StandardVulnerability {
   id?: string
+  finding_key?: string
+  finding_key_strength?: FindingIdentityStrength
   rule?: RuleIdentity
   taxonomies: TaxonomyReference[]
   raw_type?: string

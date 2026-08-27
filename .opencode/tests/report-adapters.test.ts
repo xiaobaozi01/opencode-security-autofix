@@ -18,12 +18,23 @@ function input(text: string, extension: string, formatHint = "auto") {
 
 test("JSON Adapter 识别常见 findings 容器", () => {
   const result = jsonReportAdapter.parse(
-    input(JSON.stringify({ scanner: "demo", findings: [{ id: "F-1" }] }), ".json"),
+    input(JSON.stringify({
+      scanner: "demo",
+      findings: [{ id: "F-1", taxonomies: [{ name: "CWE", id: "CWE-79" }] }],
+    }), ".json"),
   )
   assert.equal(result.findings[0].original_id, "F-1")
-  assert.deepEqual(result.findings[0].taxonomies, [])
+  assert.deepEqual(result.findings[0].taxonomies, [{
+    name: "CWE",
+    id: "CWE-79",
+    relationship: undefined,
+    source: "adapter",
+  }])
   assert.equal(result.findings[0].rule?.scanner, "demo")
-  assert.deepEqual(result.findings[0].raw, { id: "F-1" })
+  assert.deepEqual(result.findings[0].raw, {
+    id: "F-1",
+    taxonomies: [{ name: "CWE", id: "CWE-79" }],
+  })
   assert.equal(result.report.scanner, "demo")
 })
 

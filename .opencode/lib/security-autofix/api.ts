@@ -29,12 +29,22 @@ export type { Fixability, RepairEntry } from "./repair/catalog"
 
 export { routeFinding } from "./repair/router"
 export type {
+  AnalysisVerdict,
   RepairMatchKind,
   RepairRouteCandidate,
   RepairRouteInput,
   RepairRouteResult,
   RepairRouteStatus,
 } from "./repair/router"
+export {
+  findingIdentity,
+  findingIdentityKeys,
+  withFindingIdentity,
+} from "./finding/identity"
+export type {
+  FindingIdentityInput,
+  FindingIdentityStrength,
+} from "./finding/identity"
 export type {
   RuleIdentity,
   SemanticRouteCandidate,

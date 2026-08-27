@@ -22,6 +22,8 @@ export interface RepairEntry {
   validators: string[]
 }
 
+export type RepairEntryApplicability = "SUPPORTED" | "UNCONFIRMED" | "UNSUPPORTED"
+
 const builtinCwes: Record<string, string[]> = {
   SQL_INJECTION: ["CWE-89"],
   NOSQL_INJECTION: ["CWE-943"],
@@ -956,16 +958,27 @@ function normalize(value: string | undefined, aliases: Record<string, string>) {
 }
 
 function supports(values: string[], actual: string | undefined) {
-  if (!actual) return true
   const normalized = values.map(value => value.toLowerCase())
+  if (!actual) return normalized.includes("*")
   return normalized.includes("*") || normalized.includes(actual)
 }
 
-export function repairEntrySupports(entry: RepairEntry, language?: string, framework?: string) {
+export function repairEntryApplicability(
+  entry: RepairEntry,
+  language?: string,
+  framework?: string,
+): RepairEntryApplicability {
   const targetLanguage = normalize(language, languageAliases)
   const targetFramework = normalize(framework, frameworkAliases)
-  return (
-    supports(entry.supported_languages, targetLanguage) &&
-    supports(entry.supported_frameworks, targetFramework)
-  )
+  const languageKnown = Boolean(targetLanguage) || entry.supported_languages.includes("*")
+  const frameworkKnown = Boolean(targetFramework) || entry.supported_frameworks.includes("*")
+  if (!languageKnown || !frameworkKnown) return "UNCONFIRMED"
+  return supports(entry.supported_languages, targetLanguage) &&
+      supports(entry.supported_frameworks, targetFramework)
+    ? "SUPPORTED"
+    : "UNSUPPORTED"
+}
+
+export function repairEntrySupports(entry: RepairEntry, language?: string, framework?: string) {
+  return repairEntryApplicability(entry, language, framework) === "SUPPORTED"
 }

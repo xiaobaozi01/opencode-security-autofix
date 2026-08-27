@@ -22,7 +22,7 @@ permission:
 1. 扫描报告统一调用 `autofix_report`；该 Tool 内部通过 Report Adapter Registry 选择 Adapter。
 2. Adapter 只确定性提取 `rule`、`taxonomies`、`raw_type`、位置和原始证据，不负责决定 Repair 路由。
 3. 基于漏洞描述可以补充 `semantic_candidates`，但必须保留置信度和证据，不得选择 Repair Entry。
-4. 标准模型至少包含：`rule`、`taxonomies`、`severity`、`confidence`，并按证据可选保留 `id/raw_type/semantic_candidates/title/description/location/source/sink/trace/evidence/raw_reference`。
+4. 标准模型至少包含：`rule`、`taxonomies`、`severity`、`confidence`，并保留 Tool 返回的 `finding_key/finding_key_strength`；按证据可选保留 `id/raw_type/semantic_candidates/title/description/location/source/sink/trace/evidence/raw_reference`。
 5. Markdown/Text 等非结构化结果可以继续做语义抽取，但不得猜测缺失事实。
 
 ## 标准化规则
@@ -31,6 +31,7 @@ permission:
 - CWE 等分类 -> `taxonomies[]`，保留 `name/id/relationship/source`。
 - 扫描器自己的类别只能放入 `raw_type`，不能直接作为 Repair 路由。
 - Agent 语义判断只能放入 `semantic_candidates`，禁止为了匹配 Catalog 而改写漏洞事实。
+- Agent 新增的 Taxonomy 必须标记 `source=analyzer`；它不会获得确定性路由权限。
 - 禁止输出 `repair_entry_id`、`repair_provider` 或 `strategy`；这些只能由 `fix-planner` 调用路由 Tool 获取。
 - severity：`CRITICAL | HIGH | MEDIUM | LOW | INFO | UNKNOWN`。
 - confidence：`HIGH | MEDIUM | LOW | UNKNOWN`。

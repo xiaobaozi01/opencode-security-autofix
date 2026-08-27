@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 修复闭环硬门禁版本
+
+- 将 `VULNERABLE | NOT_VULNERABLE | PARTIAL | NEED_CONTEXT` 接入确定性 Repair Route 门禁，误报和证据不足项不能进入自动修改。
+- Taxonomy 路由仅信任 Scanner/Adapter 的精确或子集关系；Analyzer、Relevant 和 Superset Taxonomy 强制人工审核。
+- 未确认语言/框架适用性时不再自动返回 `MATCHED`。
+- 新增稳定 Finding Identity 和 `autofix_compare`，要求修复前基线复现；只有 Fingerprint 可证明重扫 `ABSENT`。
+- 新增 `autofix_patch` Patch Batch 快照、封存、接受、回滚与并发冲突保护；Batch 绑定稳定 Finding Key，并以本地 Receipt 证明真实 Accept/Rollback，失败重试禁止叠加补丁。
+- `autofix_result` 在写报告前确定性校验真实性、Route、必要 Gate、Rescan 和 Patch Batch 状态，拒绝矛盾的 `FIX_ACCEPTED`。
+- 最终结果 Tool 统一返回 snake_case 字段；报告不再把 AMBIGUOUS 的第一个候选显示成已确定分类。
+- 自动化测试扩展到 48 个。
+
 ## Build Task 精简版本
 
 - 删除 Maven、Gradle、Node、Python Build Adapter 及全部专属 Options。

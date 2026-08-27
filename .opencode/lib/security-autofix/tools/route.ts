@@ -25,6 +25,9 @@ export const autofixRouteTool = tool({
   description:
     "根据 Finding 证据及已确认的语言/框架，一次完成确定性 Repair Catalog 路由。仅有模型语义候选时强制人工复核。",
   args: {
+    analysis_verdict: tool.schema
+      .enum(["VULNERABLE", "NOT_VULNERABLE", "PARTIAL", "NEED_CONTEXT"])
+      .describe("vuln-analyzer 的真实性结论；只有 VULNERABLE 可以进入自动路由"),
     rule: ruleSchema.optional(),
     taxonomies: tool.schema.array(taxonomySchema).optional(),
     raw_type: tool.schema.string().optional(),

@@ -23,6 +23,12 @@ permission:
 - 需要业务权限策略、租户边界、数据迁移等人工决策 -> `HUMAN_REVIEW`。
 - 关键验证设施不可用导致无法安全接受 -> 优先 `HUMAN_REVIEW`。
 
+## 硬裁决表
+- 任一必要 Gate 为 `FAIL`，或 Rescan 为 `PRESENT` -> `FIX_REJECTED`；
+- 没有失败，但任一必要 Gate 为 `NOT_RUN | UNKNOWN | INDETERMINATE | WARN` -> `HUMAN_REVIEW`；
+- 只有 `analysis/patch/security_review/build/tests/regression_review` 全部 `PASS`、Rescan 为 `ABSENT`、Route 为 `MATCHED` 时，才允许 `FIX_ACCEPTED`；
+- `NOT_VULNERABLE` 不进入本 Agent，应由主流程直接记录 `FALSE_POSITIVE`。
+
 ## 输出
 严格 JSON：
 - `verdict`
@@ -32,3 +38,4 @@ permission:
 - `human_checks`
 
 `gates` 至少包含：`analysis`, `patch`, `security_review`, `build`, `tests`, `rescan`, `regression_review`。
+Gate 状态必须使用上述规范值，不得用自然语言代替状态。最终结果仍会由 `autofix_result` 程序化复核。

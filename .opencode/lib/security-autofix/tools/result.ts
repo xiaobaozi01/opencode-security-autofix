@@ -2,6 +2,8 @@ import { tool } from "@opencode-ai/plugin"
 import path from "path"
 import { mkdir, writeFile } from "fs/promises"
 import { loadSecurityAutofixConfig } from "../config"
+import { validateFinalReport } from "../workflow/verdict"
+import { verifyPatchBatchReceipt } from "../patch/batch"
 
 type AnyRecord = Record<string, any>
 
@@ -131,7 +133,7 @@ function renderFinding(finding: AnyRecord, index: number): string {
       ? finding.route
       : {}
   const displayType = text(
-    route.display_type ?? route.candidates?.[0]?.display_type,
+    route.status === "MATCHED" ? route.display_type : route.status,
     "UNCLASSIFIED",
   )
   const cwes = asArray(finding.taxonomies)
@@ -154,12 +156,15 @@ function renderFinding(finding: AnyRecord, index: number): string {
     `## ${index + 1}. ${id} - ${displayType}`,
     "",
     `- **Repair Route**：${text(route.status, "UNCLASSIFIED")}`,
+    `- **Finding Key**：${text(finding.finding_key)}`,
     `- **Repair Entry**：${text(route.repair_entry_id)}`,
     `- **CWE**：${text(cwes)}`,
     `- **严重级别**：${text(finding.severity)}`,
+    `- **分析结论**：${text(finding.analysis_verdict ?? finding.analysisVerdict)}`,
     `- **最终结论**：${text(finding.verdict ?? finding.fixability)}`,
     `- **Repair Provider**：${text(finding.repairProvider ?? finding.repair_provider)}`,
     `- **Repair Strategy**：${text(finding.strategy)}`,
+    `- **Patch Batch**：${text(finding.patch_batch ?? finding.patchBatch)}`,
     "",
     "### 根因",
     "",
@@ -213,6 +218,7 @@ function buildMarkdown(report: AnyRecord, generatedAt: string): string {
     "# Security AutoFix 修复报告",
     "",
     `- **任务名称**：${text(task.name, "Security AutoFix")}`,
+    `- **任务模式**：${text(task.mode, "AUTOFIX")}`,
     `- **输入来源**：${text(task.source)}`,
     `- **报告生成时间**：${generatedAt}`,
     "",
@@ -274,14 +280,49 @@ export const autofixResultTool = tool({
       })
     }
 
-    if (!Array.isArray(report.findings)) {
+    const validationErrors = validateFinalReport(report)
+    if (validationErrors.length) {
       return JSON.stringify({
         status: "FAILED",
-        reason: "result_json.findings 必须是数组",
+        reason: "最终结果未通过确定性裁决校验",
+        errors: validationErrors,
       })
     }
 
     const root = path.resolve(context.worktree)
+    const workflowMode = String(report.task?.mode ?? "AUTOFIX").toUpperCase()
+    const receiptErrors: string[] = []
+    for (const [index, finding] of report.findings.entries()) {
+      const patchBatch = finding?.patch_batch ?? finding?.patchBatch
+      const patchStatus = String(patchBatch?.status ?? "").toUpperCase()
+      if (workflowMode === "VERIFY" && patchStatus === "EXISTING") continue
+      if (!["ACCEPTED", "ROLLED_BACK"].includes(patchStatus)) continue
+      const batchId = String(patchBatch?.batch_id ?? patchBatch?.batchId ?? "")
+      if (!batchId) {
+        receiptErrors.push(`${finding?.id ?? `Finding-${index + 1}`}: patch_batch 缺少 batch_id`)
+        continue
+      }
+      if (!finding?.finding_key) {
+        receiptErrors.push(`${finding?.id ?? `Finding-${index + 1}`}: AutoFix Patch Batch 缺少 finding_key`)
+        continue
+      }
+      const verified = await verifyPatchBatchReceipt(
+        root,
+        batchId,
+        patchStatus as "ACCEPTED" | "ROLLED_BACK",
+        finding?.finding_key,
+      )
+      if (!verified.valid) {
+        receiptErrors.push(`${finding?.id ?? `Finding-${index + 1}`}: ${verified.reason}`)
+      }
+    }
+    if (receiptErrors.length) {
+      return JSON.stringify({
+        status: "FAILED",
+        reason: "Patch Batch Receipt 校验失败",
+        errors: receiptErrors,
+      })
+    }
     const { config } = await loadSecurityAutofixConfig(root)
 
     let outputDir = "security-autofix-results"
@@ -333,10 +374,10 @@ export const autofixResultTool = tool({
 
     return JSON.stringify({
       status: "WRITTEN",
-      reportPath: path.relative(root, reportPath).replace(/\\/g, "/"),
-      jsonPath: jsonPath ? path.relative(root, jsonPath).replace(/\\/g, "/") : undefined,
-      findingCount: report.findings.length,
-      generatedAt,
+      report_path: path.relative(root, reportPath).replace(/\\/g, "/"),
+      json_path: jsonPath ? path.relative(root, jsonPath).replace(/\\/g, "/") : undefined,
+      finding_count: report.findings.length,
+      generated_at: generatedAt,
     })
   },
 })

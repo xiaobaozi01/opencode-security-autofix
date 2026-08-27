@@ -25,7 +25,7 @@ function relationship(value: unknown): TaxonomyReference["relationship"] {
 function taxonomySource(value: unknown): TaxonomyReference["source"] {
   return ["scanner", "adapter", "analyzer"].includes(String(value))
     ? value as TaxonomyReference["source"]
-    : "scanner"
+    : "adapter"
 }
 
 function taxonomyReferences(raw: Record<string, any>): TaxonomyReference[] {
@@ -70,6 +70,7 @@ export function normalizeRawFinding(rawValue: unknown, scanner?: string): RawFin
   const file = first(raw, ["file", "path", "filename", "uri"])
   const startLine = first(raw, ["start_line", "startLine", "line", "line_number"])
   const endLine = first(raw, ["end_line", "endLine"])
+  const method = first(raw, ["method", "method_name", "methodName", "function", "function_name"])
 
   return {
     original_id: String(first(raw, ["original_id", "id", "finding_id", "findingId"]) ?? "") || undefined,
@@ -93,6 +94,7 @@ export function normalizeRawFinding(rawValue: unknown, scanner?: string): RawFin
             file: file ? String(file) : undefined,
             start_line: number(startLine),
             end_line: number(endLine),
+            method: method ? String(method) : undefined,
           }
         : undefined,
     raw: rawValue,

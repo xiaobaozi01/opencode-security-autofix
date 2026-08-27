@@ -18,6 +18,8 @@ permission:
 判断：
 `VULNERABLE | NOT_VULNERABLE | PARTIAL | NEED_CONTEXT`
 
+该结论是后续自动修改硬门禁，不是建议字段。证据不足必须使用 `NEED_CONTEXT`，不得为了进入修复流程输出 `VULNERABLE`。
+
 检查：
 - 输入是否真实可控；
 - 是否经过有效校验、编码、参数化或安全封装；
@@ -42,7 +44,7 @@ Java/Spring 项目重点检查 Controller、DTO、Service、Mapper/Repository、
 
 ## 输出
 至少返回：
-- `verdict`, `confidence`
+- `analysis_verdict`, `confidence`
 - `root_cause`, `source`, `sink`, `propagation`
 - `existing_controls`
 - `language`, `frameworks/components`

@@ -20,13 +20,15 @@ permission:
 
 ## 报告对象
 至少整理：
-- task/source
-- finding id、Rule Identity、Taxonomy、`route`、severity
+- task/source；`task.mode` 必须是 `AUTOFIX | VERIFY`
+- finding id、`finding_key`、Rule Identity、Taxonomy、`route`、severity
 - verdict/fixability
+- `analysis_verdict`
 - rootCause
 - `repairProvider`（领域 Skill）
 - `strategy`（具体漏洞修复策略）
 - patchSummary/files
+- `patch_batch` 必须保留 Tool 返回的 `batch_id` 和最终状态（`ACCEPTED | ROLLED_BACK | CONFLICT`）；只验证已有补丁时使用 `EXISTING`
 - gates/evidence/notRun
 - remainingRisk/humanChecks
 

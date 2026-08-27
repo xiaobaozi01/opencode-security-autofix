@@ -9,6 +9,7 @@ permission:
   glob: allow
   grep: allow
   list: allow
+  autofix_patch: allow
   task:
     '*': deny
     report-analyzer: allow
@@ -38,6 +39,7 @@ permission:
 - 人工输入也必须交给 `report-analyzer`，整理成同一事实模型和可审计语义候选。
 - 保留原始 Finding ID 和原始报告引用。
 - 去重基于**相同根因 + 相同 Sink**，不能只按 CWE 合并。
+- 保留 `finding_key` 和 `finding_key_strength`；不得自行声明弱身份为稳定 Fingerprint。
 
 ## B. 漏洞分析
 每条标准漏洞交给 `vuln-analyzer`，一次完成：
@@ -48,19 +50,28 @@ permission:
 - API、业务、数据和兼容性影响；
 - 合适的最小修改位置。
 
+真实性是硬门禁：
+- `NOT_VULNERABLE` -> `FALSE_POSITIVE`，禁止规划和修改；
+- `NEED_CONTEXT | PARTIAL` -> `HUMAN_REVIEW`，禁止自动修改；
+- 只有 `VULNERABLE` 可以进入修复计划。
+
 ## C. 修复计划
 调用 `fix-planner`：
 - 将 Finding 证据与已确认的 language/framework 一次传给 `autofix_route`；
+- 必须原样传入 `analysis_verdict`；Tool 非 `MATCHED` 时禁止修改；
 - 只有 Route 为 `MATCHED` 时才能使用 Tool 返回的 Repair Provider；
 - Provider 指向**领域 Repair Skill**，`strategy` 指向 Skill 内的具体漏洞策略；
 - 同时判断 `AUTO_FIX | AUTO_FIX_WITH_REVIEW | HUMAN_REVIEW | GUIDANCE_ONLY | NOT_SUPPORTED`；
 - 只有前两类允许进入自动修改。
 
 ## D. 最小补丁
-调用 `code-fixer`，严格执行 FixPlan 和指定的领域 Skill/strategy。
+进入修改前先调用 `fix-validator` 的 `preflight` 阶段。配置 Scanner 时必须保存修复前基线报告，并用 `autofix_compare` 确认原 Finding 为 `PRESENT`；`ABSENT | INDETERMINATE | NOT_RUN` 均不得自动修改。
+
+使用 Preflight Compare 返回的稳定 `finding_key` 更新本 Finding。对完整 `patch_files` 调用 `autofix_patch(action=begin, finding_key=...)`，保存返回的 `batch_id`，然后调用 `code-fixer`：
 - **MINIMAL PATCH ONLY**；
 - 禁止无关重构、全局格式化、顺手修其他漏洞；
 - 修改同一文件/同一方法的批量 Finding 必须串行。
+- 修改完成立即调用 `autofix_patch(action=seal)`；没有实际变更时 Patch Gate 为 `FAIL`。
 
 ## E. 统一验证
 补丁完成后调用 `fix-validator`，由它按顺序完成：
@@ -73,15 +84,23 @@ permission:
 用户输入中指定的 Build/Test Task ID 和额外参数必须原样传递给 `fix-validator`，Agent 不得创造未配置的 Task ID。
 
 验证步骤仍然独立记录状态；合并 Agent 不代表删除验证 Gate。未执行必须标记 `NOT_RUN`。
+重扫必须把修复前 `baseline_report` 和修复后 `rescan_report` 交给 `autofix_compare`；只接受 `PRESENT | ABSENT | INDETERMINATE`，Agent 禁止自行把“未找到”解释为 `ABSENT`。
 
 ## F. 最终裁决
 调用 `final-judge`，只根据前序证据返回：
 `FIX_ACCEPTED | FIX_REJECTED | HUMAN_REVIEW`。
 
-同一根因因新证据导致修复失败时，最多额外允许 2 次修复尝试，禁止无限循环。
+裁决后立即处理 Patch Batch：
+- `FIX_ACCEPTED` -> `autofix_patch(action=accept)`；
+- `FIX_REJECTED | HUMAN_REVIEW` -> `autofix_patch(action=rollback)`；
+- Accept 返回 `CONFLICT` 时必须把最终结论降为 `HUMAN_REVIEW`；Rollback 返回 `CONFLICT` 时保留原安全裁决但必须在最终结果中原样报告，禁止宣称代码已恢复。
+- 最终 `patch_batch` 必须保留 Tool 返回的真实 `batch_id` 和状态；`autofix_result` 会核验本地 Receipt。
+
+同一根因因新证据导致修复失败时，必须先成功回滚失败 Batch，最多额外允许 2 次修复尝试，禁止叠加失败补丁或无限循环。
 
 ## G. 最终报告
 所有 Finding 完成后调用一次 `result-reporter`，生成本次任务唯一的 Markdown 总报告。
+`autofix_result` 会确定性拒绝与 Gate、分析结论或 Patch Batch 状态冲突的最终 JSON；失败时必须修正数据，禁止绕过校验。
 
 默认文件名：
 `security-autofix-results/security-autofix-result-YYYY-MM-DD HH-mm-ss.md`

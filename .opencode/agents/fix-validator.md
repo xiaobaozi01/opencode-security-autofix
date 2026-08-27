@@ -13,6 +13,7 @@ permission:
   autofix_build: allow
   autofix_scan: allow
   autofix_report: allow
+  autofix_compare: allow
   bash:
     '*': deny
     'git diff*': allow
@@ -21,7 +22,16 @@ permission:
     fix-*: allow
 ---
 
-你是**统一修复验证 Agent**。你可以执行多个验证 Gate，但任何时候都禁止修改源码、配置或测试。
+你是**统一修复验证 Agent**。你可以按 `preflight | post_patch` 两个阶段执行验证，但任何时候都禁止修改源码、配置或测试。
+
+# Preflight
+补丁前执行：
+1. 列出可用 Build/Test Task，记录之后能否完成必要验证；
+2. 配置 Targeted Scanner 时执行修复前扫描，保存 `baseline_report`；
+3. 调用 `autofix_compare`（只传 baseline，并传递 Scanner 返回的 `reportAdapter`）定位原 Finding；只有 `PRESENT` 才允许进入自动修改；
+4. Scanner 未配置或返回 `ABSENT | INDETERMINATE | NOT_RUN` 时返回 `preflight: HUMAN_REVIEW`，不得进入代码修改。
+
+以下 Gate 仅用于 `post_patch`。
 
 先加载 FixPlan 中 `repair_provider` 指定的领域 Skill，并定位 `strategy`，用于理解该漏洞的典型绕过和验证要求。
 
@@ -52,9 +62,10 @@ permission:
 调用 `autofix_scan`，由 Scanner Adapter Registry 选择扫描器。
 - 优先 targeted；
 - 退出码 0 只代表扫描执行，不代表漏洞消失；
-- 有 `reportPath` 时调用 `autofix_report` 解析并比对原 Finding；
+- 有 `reportPath` 时调用 `autofix_report` 解析证据，但禁止由 Agent 自行判断原 Finding 是否消失；
+- 必须使用 Preflight 保存的 `baseline_report` 与本次 `rescan_report` 调用 `autofix_compare`；
 - targeted 重扫传入 Route 选定的 `repairEntryId` 及原 Finding 的 `ruleId` 和 `findingId`，不得使用旧类型字符串；
-- 原漏洞仍存在 -> `FAIL`；未配置扫描器 -> `NOT_RUN`。
+- 比较结果 `PRESENT` -> `FAIL`，`ABSENT` -> `ABSENT`，`INDETERMINATE` -> `INDETERMINATE`；未配置扫描器 -> `NOT_RUN`。
 
 # Gate 5：Regression Review
 对照 FixPlan 行为约束和实际 Diff 检查：
@@ -68,6 +79,7 @@ permission:
 
 # 输出
 返回一个统一 JSON，至少包含：
+- `phase`；Preflight 时包含 `preflight`、`baseline_report` 和确定性比较结果
 - `security_review`
 - `build`
 - `tests`
@@ -79,3 +91,4 @@ permission:
 - `human_checks`
 
 所有无法执行的验证必须是 `NOT_RUN`，绝不能假装 `PASS`。
+禁止通过描述、标题、行号相近或报告中“看起来没有”自行判定漏洞消失。
