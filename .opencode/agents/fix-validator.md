@@ -35,13 +35,17 @@ permission:
 输出 `security_review: PASS | FAIL`。
 
 # Gate 2：Build
-调用 `autofix_build` 的 `action=compile/build` 能力。项目已在 `security-autofix.json` 配置 Build Target 时传入 `target` 和适用的 `configuration`；否则根据 `vuln-analyzer` 已确认的构建系统显式传入 `adapter`。Build Tool 不自动猜测构建系统。只有真实执行成功才能 `PASS`；无法运行是 `NOT_RUN`。
+1. 先不传 `task` 调用 `autofix_build`，读取项目配置的 Build Task 列表。
+2. 用户/FixPlan 明确指定 Task ID 时直接使用；否则先按 `kind=build|compile` 过滤，再用修改文件匹配 Task `paths`。
+3. 没有 `paths` 时，只有候选唯一才能自动选择；`cwd` 只是执行目录，不是必要的选择条件。
+4. 多个候选仍无法区分时禁止猜测，返回 `NOT_RUN` 并列出候选 Task ID。
+5. 传入明确 `task` 和用户指定的 `args/env/timeoutMs` 执行。只有真实执行成功才能 `PASS`；`LISTED` 不是验证通过。
 
 # Gate 3：Test
-调用 `autofix_build` 的 `action=test`：
-- 优先针对性测试；
-- 传入与 Build 相同的 `target`/`configuration` 或 `adapter`，并在测试框架支持时传入 `testSelector`；
-- 再按需要运行受影响模块测试；
+按相同规则选择 `kind=test` 的命名 Task：
+- 优先使用用户/FixPlan 指定的 Test Task；
+- 针对性测试参数作为 `args` 数组传入，具体语法由项目 Task 命令决定；
+- 再按需要运行受影响模块的其他 Test Task；
 - 单独记录 `security_regression_coverage: COVERED | MISSING | NOT_APPLICABLE | UNKNOWN`。
 
 # Gate 4：Security Rescan

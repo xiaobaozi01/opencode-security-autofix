@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## Build Task 精简版本
+
+- 删除 Maven、Gradle、Node、Python Build Adapter 及全部专属 Options。
+- 删除 `action + target/adapter + configuration` 请求和 Target/Configuration 多层合并。
+- `autofix_build` 改为列举或执行 `.opencode/security-autofix.json` 中的命名 Task。
+- Task 只要求 `kind + command`，`cwd`、`paths`、`description`、`env`、`timeoutMs` 均可选；空 `cwd` 默认项目根目录。
+- 新增单一 `{args}` argv 插入点，运行参数不经过 Shell 拆分或拼接。
+- Task ID 只能由项目配置定义；Agent 依次使用用户指定、`kind`、`paths` 和唯一候选进行选择。
+- 不保留上一版 Build 协议兼容入口，自动化测试保持 32 个。
+
 ## Repair 路由收敛版本
 
 - 删除独立 `autofix_classify` 和 `autofix_repair`，收敛为单一 `autofix_route` Tool。

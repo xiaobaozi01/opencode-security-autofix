@@ -31,7 +31,7 @@
 ├── plugins/
 │   └── security-autofix.ts
 ├── tests/
-│   ├── build-command.test.ts
+│   ├── build-task.test.ts
 │   ├── catalog.test.ts
 │   ├── routing.test.ts
 │   ├── delimited.test.ts
@@ -56,7 +56,7 @@ OpenCode 会自动加载 `.opencode/plugins/security-autofix.ts`。Plugin 对 Ag
 - `autofix_report`：扫描报告解析。
 - `autofix_route`：根据 Finding 证据、语言和框架一次返回 Repair Provider/strategy。
 - `autofix_scan`：调用扫描器重扫。
-- `autofix_build`：受限 Build/Test，支持 Maven、Gradle、Node、Python，以及命名 Target/Configuration。
+- `autofix_build`：列出或执行项目配置的命名 Build/Test Task。
 - `autofix_result`：生成最终 Markdown。
 
 `.opencode/lib/security-autofix/` 是 Plugin 私有运行时实现，不需要 Agent 直接读取。
@@ -285,100 +285,65 @@ export const CompanyRepairExtension: Plugin = async () => {
 
 ## 9. Build/Test 验证
 
-`autofix_build` 使用统一请求和四个内置 Build Adapter，不再自动检测构建系统。每次调用必须在命名 Target 和显式 Adapter 之间选择一种：
-
-```text
-target = security-autofix.json 中配置的名称
-或
-adapter = maven | gradle | node | python
-```
-
-公共参数包括 `action`、`cwd`、`testSelector`、`timeoutMs` 和 `env`。`action` 为 `compile | build | test`。针对性测试通过 `testSelector` 传递：Maven 使用 `-Dtest`，Gradle 使用 `--tests`，Node 追加到测试脚本参数，Python 传给 pytest。
-
-各构建系统使用独立结构化参数：
-
-| Adapter | 结构化参数 |
-|---|---|
-| Maven | `module`、`settings`、`globalSettings`、`profiles`、`properties`、`cliArgs` |
-| Gradle | `module`、`gradleUserHome`、`initScripts`、`projectProperties`、`systemProperties`、`cliArgs`、`taskArgs` |
-| Node | `packageManager`、`scripts`、`cliArgs`、`scriptArgs` |
-| Python | `executable`、`configSettings`、`pytestArgs`、`buildArgs`、`compileArgs` |
-
-### Build Target 和 Configuration
-
-稳定的项目参数应放在 `.opencode/security-autofix.json`，而不是每次调用重复传递：
+`autofix_build` 不再内置 Maven、Gradle、Node 或 Python Adapter，也不自动生成构建命令。项目在 `.opencode/security-autofix.json` 中定义命名 Task：
 
 ```json
 {
   "build": {
-    "targets": {
-      "backend": {
-        "adapter": "maven",
-        "cwd": "backend",
+    "tasks": {
+      "backend-build": {
+        "kind": "build",
+        "description": "构建后端 Maven 模块",
+        "paths": ["backend/**", "pom.xml"],
+        "command": ["./mvnw", "-pl", "backend", "{args}", "package"],
         "timeoutMs": 900000,
-        "options": {
-          "maven": {
-            "settings": "${userHome}/.m2/settings.xml",
-            "profiles": ["company"],
-            "properties": {
-              "revision": "1.2.0"
-            }
-          }
-        },
-        "configurations": {
-          "ci": {
-            "env": {
-              "CI": "true"
-            },
-            "options": {
-              "maven": {
-                "profiles": ["company", "ci"],
-                "cliArgs": ["--batch-mode"]
-              }
-            }
-          }
+        "env": {
+          "CI": "true"
         }
       },
-      "frontend": {
-        "adapter": "node",
+      "backend-test": {
+        "kind": "test",
+        "paths": ["backend/**"],
+        "command": ["./mvnw", "-pl", "backend", "{args}", "test"]
+      },
+      "frontend-build": {
+        "kind": "build",
         "cwd": "frontend",
-        "options": {
-          "node": {
-            "packageManager": "pnpm",
-            "scripts": {
-              "compile": "typecheck",
-              "build": "build",
-              "test": "test"
-            }
-          }
-        }
+        "paths": ["frontend/**"],
+        "command": ["pnpm", "build", "{args}"]
       }
     }
   }
 }
 ```
 
-调用命名目标：
+Task 字段：
+
+- `kind`：必填，`compile | build | test`，用于区分验证 Gate。
+- `command`：必填 argv 数组，第一项是可执行程序。
+- `cwd`：可选项目内目录；省略或空字符串时使用项目根目录。
+- `paths`：可选文件模式，供 Agent 根据修改文件选择 Task；不影响执行目录。
+- `description`：可选说明，只用作选择辅助信息。
+- `env`、`timeoutMs`：可选默认环境变量和超时时间。
+
+不传 `task` 时只列出任务：
+
+```json
+{}
+```
+
+执行任务并传入 Maven settings：
 
 ```json
 {
-  "action": "build",
-  "target": "backend",
-  "configuration": "ci"
+  "task": "backend-build",
+  "args": ["-s", "${userHome}/.m2/settings.xml", "-Pcompany"]
 }
 ```
 
-配置按以下顺序合并，后者覆盖前者：
+`{args}` 必须是独立数组元素，最多出现一次；未传参数时删除，命令中没有 `{args}` 时将运行参数追加到末尾。`${workspaceFolder}`、`${userHome}` 和 `~/` 可用于 `cwd`、`command` 和运行参数。
 
-```text
-Adapter 内置默认值 < Target < Configuration < 本次调用
-```
-
-`cwd` 必须位于项目工作区内。路径参数支持相对路径、绝对路径、`${workspaceFolder}`、`${userHome}` 和 `~/`。运行时附加属性使用 Tool Schema 中的 `name/value` 列表传入；项目配置文件中使用普通 JSON Object。
-
-额外参数始终使用字符串数组。Build Tool 将命令和参数直接交给进程执行，不解析整段 Shell 命令。
-
-只有检测到对应脚本或构建文件时才会执行；无法执行返回 `NOT_RUN`。
+Task ID 由项目维护者定义，Agent 不得在运行时创造。选择顺序是：用户指定 -> `kind` -> 修改文件匹配 `paths` -> 唯一候选。仍有歧义时返回 `NOT_RUN`并列出候选，不根据描述猜测。
 
 ## 10. 开发测试
 
@@ -389,7 +354,7 @@ cd .opencode/tests
 npm test
 ```
 
-32 个测试覆盖 Build/Test 命令解析和配置合并、36 条 Repair Entry、Rule/Taxonomy/Alias 路由优先级、语言/框架适用性、歧义与人工复核边界、内置报告 Adapter、CSV/TSV 和 Scanner 状态判定。
+32 个测试覆盖 Build Task 列举、argv 参数插入、路径/环境/超时校验、36 条 Repair Entry、Rule/Taxonomy/Alias 路由优先级、歧义与人工复核边界、内置报告 Adapter、CSV/TSV 和 Scanner 状态判定。
 
 ## 11. 使用
 

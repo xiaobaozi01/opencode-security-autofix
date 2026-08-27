@@ -25,7 +25,7 @@
 .opencode/lib/security-autofix/scanner/builtin/command.adapter.ts
 .opencode/lib/security-autofix/scanner/registry.ts
 .opencode/lib/security-autofix/scanner/types.ts
-.opencode/lib/security-autofix/tools/build-command.ts
+.opencode/lib/security-autofix/tools/build-task.ts
 .opencode/lib/security-autofix/tools/build.ts
 .opencode/lib/security-autofix/tools/report.ts
 .opencode/lib/security-autofix/tools/result.ts
@@ -41,7 +41,7 @@
 .opencode/skills/fix-request-security/SKILL.md
 .opencode/skills/fix-web-security/SKILL.md
 .opencode/skills/fix-xml-deserialization/SKILL.md
-.opencode/tests/build-command.test.ts
+.opencode/tests/build-task.test.ts
 .opencode/tests/catalog.test.ts
 .opencode/tests/delimited.test.ts
 .opencode/tests/package.json

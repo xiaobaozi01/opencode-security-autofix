@@ -70,6 +70,8 @@ permission:
 4. Targeted Rescan（配置 Scanner Adapter 时）；
 5. Regression Review。
 
+用户输入中指定的 Build/Test Task ID 和额外参数必须原样传递给 `fix-validator`，Agent 不得创造未配置的 Task ID。
+
 验证步骤仍然独立记录状态；合并 Agent 不代表删除验证 Gate。未执行必须标记 `NOT_RUN`。
 
 ## F. 最终裁决

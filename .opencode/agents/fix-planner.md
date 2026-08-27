@@ -56,6 +56,7 @@ IDOR/BOLA、租户边界、未知业务权限模型、复杂加密迁移等通�
 - `security_invariant`
 - `behavior_constraints`
 - `tests_to_add_or_update`
+- 用户明确指定时保留 `build_task`、`test_task`、`build_args`、`test_args`
 - `validators`
 - `rollback_notes`
 - `human_decisions`

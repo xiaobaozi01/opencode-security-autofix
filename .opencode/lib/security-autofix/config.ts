@@ -1,5 +1,5 @@
 import path from "path"
-import type { BuildConfiguration } from "./tools/build-command"
+import type { BuildConfiguration } from "./tools/build-task"
 
 export const CONFIG_RELATIVE_PATH = ".opencode/security-autofix.json"
 

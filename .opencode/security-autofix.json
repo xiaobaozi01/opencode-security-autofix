@@ -15,7 +15,7 @@
     }
   },
   "build": {
-    "targets": {}
+    "tasks": {}
   },
   "results": {
     "outputDir": "security-autofix-results",
