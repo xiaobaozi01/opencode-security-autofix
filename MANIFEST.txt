@@ -17,6 +17,7 @@
 .opencode/lib/security-autofix/finding/compare.ts
 .opencode/lib/security-autofix/finding/comparison-receipt.ts
 .opencode/lib/security-autofix/patch/batch.ts
+.opencode/lib/security-autofix/patch/finalize.ts
 .opencode/lib/security-autofix/process/spawn.ts
 .opencode/lib/security-autofix/repair/catalog.ts
 .opencode/lib/security-autofix/repair/router.ts
@@ -56,6 +57,7 @@
 .opencode/tests/delimited.test.ts
 .opencode/tests/finding-compare.test.ts
 .opencode/tests/patch-batch.test.ts
+.opencode/tests/patch-finalize.test.ts
 .opencode/tests/package.json
 .opencode/tests/report-adapters.test.ts
 .opencode/tests/routing.test.ts

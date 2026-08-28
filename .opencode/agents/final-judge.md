@@ -39,3 +39,4 @@ permission:
 
 `gates` 至少包含：`analysis`, `patch`, `security_review`, `build`, `tests`, `rescan`, `regression_review`。
 Gate 状态必须使用上述规范值，不得用自然语言代替状态。最终结果仍会由 `autofix_result` 程序化复核。
+在 AUTOFIX 模式中，本 Agent 的结论还必须交给 `autofix_patch(action=finalize)`；只有 Tool 在接受前复核 Gate 与 Comparison Receipt 后返回的 `final_verdict` 才能写入最终报告。

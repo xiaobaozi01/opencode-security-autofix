@@ -59,7 +59,7 @@ OpenCode 会自动加载 `.opencode/plugins/security-autofix.ts`。Plugin 对 Ag
 - `autofix_scan`：调用扫描器重扫。
 - `autofix_compare`：使用稳定 Finding 身份比较修复前基线和修复后报告。
 - `autofix_build`：列出或执行项目配置的命名 Build/Test Task。
-- `autofix_patch`：管理 Patch Batch 快照、恢复、封存、接受和回滚。
+- `autofix_patch`：管理 Patch Batch 快照、恢复、封存，并通过 `finalize` 在接受前复核证据后接受或回滚。
 - `autofix_result`：生成最终 Markdown。
 
 `.opencode/lib/security-autofix/` 是 Plugin 私有运行时实现，不需要 Agent 直接读取。
@@ -101,7 +101,7 @@ fix-validator (post_patch)
     ↓
 final-judge
     ↓
-autofix_patch accept / rollback
+autofix_patch finalize
     ↓
 result-reporter
 ```
@@ -156,7 +156,7 @@ security-autofix-results/
 报告正文时间使用 `YYYY-MM-DD HH:mm:ss`，文件名强制由 Tool 使用运行机器本地时间生成，调用方不能指定文件名。
 同一秒内并发生成报告时不会覆盖已有文件，后续报告会追加 `-01`、`-02` 等序号。
 
-自动修改使用绑定稳定 `finding_key` 的 Patch Batch。`begin` 快照计划文件和 Git 工作区状态，`seal` 核对实际修改文件并拒绝越界或零修改，最终只有 `FIX_ACCEPTED` 调用 `accept`；`FIX_REJECTED | HUMAN_REVIEW` 调用 `rollback`。中断后可通过 `list/status` 找回 `OPEN | SEALED` 批次，`OPEN` 也可直接回滚。Accept/Rollback 会生成本地 Receipt，`autofix_result` 必须核验真实 `batch_id + finding_key + status` 及非空修改列表后才写报告。
+自动修改使用绑定稳定 `finding_key` 的 Patch Batch。`begin` 快照计划文件和 Git 工作区状态，`seal` 核对实际修改文件并拒绝越界或零修改，最终统一调用 `finalize`。`finalize` 会在删除回滚快照前复核分析结论、Route、全部 Gate 和 Comparison Receipt；只有证据有效的 `FIX_ACCEPTED` 才会接受，其余裁决或无效证据立即回滚。中断后可通过 `list/status` 找回 `OPEN | SEALED` 批次，`OPEN` 也可直接回滚。Accept/Rollback 会生成本地 Receipt，`autofix_result` 必须核验真实 `batch_id + finding_key + status` 及非空修改列表后才写报告。
 
 最终裁决硬规则：只接受规范 verdict/analysis/Gate 枚举；任一必要 Gate 失败或 Rescan 为 `PRESENT` 时必须拒绝；没有失败但存在 `NOT_RUN | UNKNOWN | INDETERMINATE | WARN` 时必须人工审核；只有全部必要 Gate 为 `PASS`、Rescan 为 `ABSENT`、Route 为 `MATCHED`、Comparison Receipt 有效且 Patch Receipt 为 `ACCEPTED` 时才能报告 `FIX_ACCEPTED`。Comparison Receipt 绑定 `finding_key`、两份不同报告及内容哈希，报告被替换后失效。`VERIFY` 模式使用 `patch_batch.status=EXISTING`，并且必须引用补丁前生成的独立历史 `verification_baseline`；当前扫描不能同时充当 baseline 和 rescan。
 
@@ -379,7 +379,7 @@ cd .opencode/tests
 npm test
 ```
 
-65 个测试覆盖 Build Task、Windows `.cmd/.bat` 命令启动、环境变量合并与跨平台进程树终止、Patch Batch 中断恢复/越界检测/回滚/冲突保护及 Receipt 校验、Comparison Receipt、平台相关 Finding 路径身份、SARIF 多版本 Fingerprint 的基线/重扫比较、最终裁决硬校验、36 条 Repair Entry、证据来源与分析置信度门禁、内置报告 Adapter、CSV/TSV 和 Scanner 状态判定。
+69 个测试覆盖 Build Task、Windows `.cmd/.bat` 命令启动、环境变量合并与跨平台进程树终止、Patch Batch 中断恢复/越界检测/接受前证据复核/回滚/冲突保护及 Receipt 校验、Comparison Receipt、平台相关 Finding 路径身份、SARIF 多版本 Fingerprint 的基线/重扫比较、最终裁决硬校验、36 条 Repair Entry、证据来源与分析置信度门禁、内置报告 Adapter、CSV/TSV 和 Scanner 状态判定。
 
 ## 11. 使用
 

@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## Patch 接受前证据复核
+
+- Patch Batch 正常结束入口收敛为 `autofix_patch(action=finalize)`，不再向 Agent 暴露未经证据复核的直接 `accept`。
+- `FIX_ACCEPTED` 会在删除回滚快照前确定性校验分析结论、Route、全部必要 Gate、Finding 绑定和 Comparison Receipt 内容哈希。
+- 接受条件或 Comparison Receipt 无效时立即回滚，并返回权威 `final_verdict`；最终证据校验失败不再留下已经接受但无法证明的补丁。
+- 新增 4 个 Finalize 测试，总测试数扩展到 69 个。
+
 ## 闭环一致性与恢复修复
 
 - Patch Batch 支持列举/查询和 `OPEN` 中断回滚，Manifest 原子更新；Git 工作区快照会阻止并恢复计划外修改，零修改批次禁止接受。

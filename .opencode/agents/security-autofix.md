@@ -89,14 +89,15 @@ permission:
 验证步骤仍然独立记录状态；合并 Agent 不代表删除验证 Gate。未执行必须标记 `NOT_RUN`。
 重扫必须把修复前 `baseline_report` 和修复后 `rescan_report` 交给 `autofix_compare`；只接受 `PRESENT | ABSENT | INDETERMINATE`，并保留 Tool 返回的 `comparison_id`。Agent 禁止自行把“未找到”解释为 `ABSENT`。
 
-## F. 最终裁决
+## F. 最终裁决与 Patch Batch 结束
 调用 `final-judge`，只根据前序证据返回：
 `FIX_ACCEPTED | FIX_REJECTED | HUMAN_REVIEW`。
 
-裁决后立即处理 Patch Batch：
-- `FIX_ACCEPTED` -> `autofix_patch(action=accept)`；
-- `FIX_REJECTED | HUMAN_REVIEW` -> `autofix_patch(action=rollback)`；
-- Accept 返回 `CONFLICT` 时必须把最终结论降为 `HUMAN_REVIEW`；Rollback 返回 `CONFLICT` 时保留原安全裁决但必须在最终结果中原样报告，禁止宣称代码已恢复。
+裁决后必须统一调用一次 `autofix_patch(action=finalize)`，传入真实 `batch_id`、`finding_key`、裁决、分析结论、Route 状态、全部 Gate 状态和 `comparison_id`：
+- Tool 会在删除回滚快照前确定性复核接受条件和 Comparison Receipt；
+- 只有全部接受条件有效时才返回 `status=ACCEPTED`、`acceptance_status=ACCEPTED` 和 `final_verdict=FIX_ACCEPTED`；
+- `FIX_REJECTED | HUMAN_REVIEW`，或任何接受证据无效时，Tool 会立即回滚并返回权威 `final_verdict`；
+- 返回 `CONFLICT` 时必须使用 Tool 的 `final_verdict=HUMAN_REVIEW`，原样报告冲突，禁止宣称代码已恢复。
 - 最终 `patch_batch` 必须保留 Tool 返回的真实 `batch_id` 和状态；`autofix_result` 会核验本地 Receipt。
 - `VERIFY` 不执行上述 Patch Batch 操作，使用 `patch_batch.status=EXISTING` 并保留独立 `verification_baseline`。
 
