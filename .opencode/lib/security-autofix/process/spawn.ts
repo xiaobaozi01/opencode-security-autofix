@@ -39,21 +39,33 @@ export function mergeEnvironment(
 ) {
   if (platform !== "win32") return { ...base, ...override }
   const merged: Record<string, string> = {}
+  const canonicalNames = new Map<string, string>()
   for (const [name, value] of [...Object.entries(base), ...Object.entries(override)]) {
-    const previous = Object.keys(merged).find(key => key.toLowerCase() === name.toLowerCase())
-    if (previous) delete merged[previous]
-    merged[name] = value
+    const folded = name.toLowerCase()
+    const canonical = canonicalNames.get(folded) ?? name
+    canonicalNames.set(folded, canonical)
+    merged[canonical] = value
   }
   return merged
+}
+
+export function processTreeTerminationPlan(
+  pid: number,
+  platform: NodeJS.Platform = process.platform,
+) {
+  return platform === "win32"
+    ? { kind: "WINDOWS_TASKKILL" as const, command: ["taskkill.exe", "/pid", String(pid), "/t", "/f"] }
+    : { kind: "POSIX_PROCESS_GROUP" as const, processGroupId: -pid }
 }
 
 export async function terminateProcessTree(
   proc: KillableProcess,
   platform: NodeJS.Platform = process.platform,
 ) {
-  if (platform === "win32") {
+  const plan = processTreeTerminationPlan(proc.pid, platform)
+  if (plan.kind === "WINDOWS_TASKKILL") {
     try {
-      const killer = Bun.spawn(["taskkill.exe", "/pid", String(proc.pid), "/t", "/f"], {
+      const killer = Bun.spawn(plan.command, {
         stdout: "ignore",
         stderr: "ignore",
       })
@@ -63,13 +75,13 @@ export async function terminateProcessTree(
     }
   } else {
     try {
-      process.kill(-proc.pid, "SIGTERM")
+      process.kill(plan.processGroupId, "SIGKILL")
       return
     } catch {
       // The process may not have formed a group yet; fall back to direct kill.
     }
   }
-  proc.kill()
+  proc.kill("SIGKILL")
 }
 
 const CMD_META = /([()\][%!^"`<>&|;, *?])/g

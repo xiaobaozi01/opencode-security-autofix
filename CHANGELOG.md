@@ -7,8 +7,10 @@
 - VERIFY 必须引用补丁前生成的独立历史 baseline，当前扫描禁止同时充当 baseline 与 rescan；`autofix_compare` 生成绑定 Finding、报告路径和内容哈希的 Comparison Receipt，接受结论必须通过校验。
 - Repair Route 接入 `analysis_confidence` 和字段来源，Analyzer/User 推断不能冒充 Scanner Rule、Taxonomy 或原始 Alias。
 - SARIF Adapter 保留全部 full/partial fingerprints，并按双方共有的具名版本项比较。
-- Build/Scanner 限制输出缓冲、支持调用取消、捕获启动失败；Scanner 在启动前校验超时，报告名加入 UUID；Windows 环境变量按大小写不敏感规则合并。
-- 自动化测试扩展到 63 个。
+- Build/Scanner 限制输出缓冲、支持调用取消、捕获启动失败；Scanner 在启动前校验超时，报告名加入 UUID。
+- Windows 环境变量覆盖按大小写不敏感规则匹配并保留继承键名；Finding 文件路径只在 Windows 下折叠大小写。
+- 超时/取消会终止 Windows 整棵进程树或 POSIX 独立进程组，不再只终止直接启动器进程。
+- 自动化测试扩展到 65 个。
 
 ## Windows 命令启动修复
 

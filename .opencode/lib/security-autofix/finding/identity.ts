@@ -37,9 +37,12 @@ function normalized(input: unknown) {
   return value(input)?.toLowerCase()
 }
 
-function normalizedFile(input: unknown) {
+function normalizedFile(input: unknown, platform: NodeJS.Platform) {
   const file = value(input)
-  return file ? path.normalize(file).replace(/\\/g, "/").toLowerCase() : undefined
+  if (!file) return undefined
+  return platform === "win32"
+    ? path.win32.normalize(file).replace(/\\/g, "/").toLowerCase()
+    : path.posix.normalize(file)
 }
 
 function digest(parts: string[]) {
@@ -72,11 +75,14 @@ function fingerprintKeys(input: FindingIdentityInput, rule: string[] | undefined
   return [...new Set(values)]
 }
 
-export function findingIdentityKeys(input: FindingIdentityInput): FindingIdentityKeys {
+export function findingIdentityKeys(
+  input: FindingIdentityInput,
+  platform: NodeJS.Platform = process.platform,
+): FindingIdentityKeys {
   const rule = ruleParts(input)
   const fingerprints = fingerprintKeys(input, rule)
   const id = value(input.original_id) ?? value(input.id)
-  const file = normalizedFile(input.location?.file)
+  const file = normalizedFile(input.location?.file, platform)
   const method = normalized(input.location?.method)
   const startLine = Number.isFinite(input.location?.start_line)
     ? String(input.location?.start_line)
@@ -92,15 +98,18 @@ export function findingIdentityKeys(input: FindingIdentityInput): FindingIdentit
   }
 }
 
-export function findingIdentity(input: FindingIdentityInput): FindingIdentity {
+export function findingIdentity(
+  input: FindingIdentityInput,
+  platform: NodeJS.Platform = process.platform,
+): FindingIdentity {
   const rule = ruleParts(input)
   const id = value(input.original_id) ?? value(input.id)
-  const file = normalizedFile(input.location?.file)
+  const file = normalizedFile(input.location?.file, platform)
   const method = normalized(input.location?.method)
   const startLine = Number.isFinite(input.location?.start_line)
     ? String(input.location?.start_line)
     : undefined
-  const keys = findingIdentityKeys(input)
+  const keys = findingIdentityKeys(input, platform)
 
   if (keys.fingerprints.length) {
     return {

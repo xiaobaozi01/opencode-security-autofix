@@ -349,6 +349,7 @@ Task 字段：
 命令仍按 argv 数组执行。Windows 上会先按当前 Task 的 `PATH/PATHEXT` 解析可执行入口：
 `mvn.cmd`、`npm.cmd`、`pnpm.cmd`、`yarn.cmd`、`gradlew.bat` 等批处理入口只在启动时通过
 `cmd.exe` 执行并逐项转义参数；`.exe/.com`、macOS 和 Linux 命令继续直接执行，不需要在配置中写平台分支。
+Windows 环境变量覆盖按名称大小写不敏感匹配，同时保留继承环境中的规范键名（例如 `Path`）；超时或取消时，Windows 使用 `taskkill /T /F` 终止整棵进程树，macOS/Linux 则终止独立进程组。
 
 不传 `task` 时只列出任务：
 
@@ -378,7 +379,7 @@ cd .opencode/tests
 npm test
 ```
 
-63 个测试覆盖 Build Task、Windows `.cmd/.bat` 命令启动与环境变量合并、Patch Batch 中断恢复/越界检测/回滚/冲突保护及 Receipt 校验、Comparison Receipt、SARIF 多版本 Fingerprint 的基线/重扫比较、最终裁决硬校验、36 条 Repair Entry、证据来源与分析置信度门禁、内置报告 Adapter、CSV/TSV 和 Scanner 状态判定。
+65 个测试覆盖 Build Task、Windows `.cmd/.bat` 命令启动、环境变量合并与跨平台进程树终止、Patch Batch 中断恢复/越界检测/回滚/冲突保护及 Receipt 校验、Comparison Receipt、平台相关 Finding 路径身份、SARIF 多版本 Fingerprint 的基线/重扫比较、最终裁决硬校验、36 条 Repair Entry、证据来源与分析置信度门禁、内置报告 Adapter、CSV/TSV 和 Scanner 状态判定。
 
 ## 11. 使用
 

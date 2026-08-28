@@ -1,6 +1,10 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { mergeEnvironment, prepareSpawnCommand } from "../lib/security-autofix/process/spawn.ts"
+import {
+  mergeEnvironment,
+  prepareSpawnCommand,
+  processTreeTerminationPlan,
+} from "../lib/security-autofix/process/spawn.ts"
 
 test("Windows 通过 PATH/PATHEXT 解析 cmd/bat，原生 exe 和 POSIX 保持直接 argv", () => {
   const maven = prepareSpawnCommand(
@@ -43,10 +47,21 @@ test("Windows 通过 PATH/PATHEXT 解析 cmd/bat，原生 exe 和 POSIX 保持�
 test("Windows 环境变量覆盖按名称大小写不敏感合并", () => {
   assert.deepEqual(
     mergeEnvironment({ Path: "OLD", TEMP: "one" }, { PATH: "NEW", temp: "two" }, "win32"),
-    { PATH: "NEW", temp: "two" },
+    { Path: "NEW", TEMP: "two" },
   )
   assert.deepEqual(
     mergeEnvironment({ Path: "OLD" }, { PATH: "NEW" }, "darwin"),
     { Path: "OLD", PATH: "NEW" },
   )
+})
+
+test("超时终止计划覆盖 Windows 进程树和 POSIX 进程组", () => {
+  assert.deepEqual(processTreeTerminationPlan(1234, "win32"), {
+    kind: "WINDOWS_TASKKILL",
+    command: ["taskkill.exe", "/pid", "1234", "/t", "/f"],
+  })
+  assert.deepEqual(processTreeTerminationPlan(1234, "linux"), {
+    kind: "POSIX_PROCESS_GROUP",
+    processGroupId: -1234,
+  })
 })

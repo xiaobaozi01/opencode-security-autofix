@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { compareBaselineAndRescan } from "../lib/security-autofix/finding/compare.ts"
+import { findingIdentityKeys } from "../lib/security-autofix/finding/identity.ts"
 
 const finding = (overrides: Record<string, unknown> = {}) => ({
   original_id: "F-1",
@@ -56,4 +57,19 @@ test("SARIF 多版本 partial fingerprint 使用双方共有版本匹配", () =>
     },
   })
   assert.equal(compareBaselineAndRescan(original, [original], [rescan]).status, "PRESENT")
+})
+
+test("Finding 文件路径只在 Windows 下折叠大小写", () => {
+  const upper = finding({
+    original_id: undefined,
+    rule: { scanner: "demo", rule_id: "R-1" },
+    location: { file: "Src/App.ts", start_line: 10 },
+  })
+  const lower = finding({
+    original_id: undefined,
+    rule: { scanner: "demo", rule_id: "R-1" },
+    location: { file: "src/app.ts", start_line: 10 },
+  })
+  assert.notEqual(findingIdentityKeys(upper, "linux").location, findingIdentityKeys(lower, "linux").location)
+  assert.equal(findingIdentityKeys(upper, "win32").location, findingIdentityKeys(lower, "win32").location)
 })
