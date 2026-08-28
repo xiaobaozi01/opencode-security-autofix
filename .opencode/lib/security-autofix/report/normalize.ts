@@ -34,7 +34,12 @@ function taxonomyReferences(raw: Record<string, any>): TaxonomyReference[] {
   const values = Array.isArray(cwes) ? cwes : cwes ? [cwes] : []
   for (const value of values) {
     const match = String(value).match(/CWE-\d+/i)
-    if (match) result.push({ name: "CWE", id: match[0].toUpperCase(), source: "adapter" })
+    if (match) result.push({
+      name: "CWE",
+      id: match[0].toUpperCase(),
+      relationship: "relevant",
+      source: "adapter",
+    })
   }
 
   for (const taxonomy of Array.isArray(raw.taxonomies) ? raw.taxonomies : []) {
@@ -81,10 +86,12 @@ export function normalizeRawFinding(rawValue: unknown, scanner?: string): RawFin
             rule_id: ruleId ? String(ruleId) : undefined,
             rule_version: ruleObject?.rule_version ?? ruleObject?.version,
             fingerprint: first(raw, ["fingerprint", "hash"]),
+            source: "adapter",
           }
         : undefined,
     taxonomies: taxonomyReferences(raw),
     raw_type: String(first(raw, ["raw_type", "type", "category", "kind"]) ?? "") || undefined,
+    raw_type_source: "adapter",
     title: String(first(raw, ["title", "name", "message"]) ?? "") || undefined,
     description: String(first(raw, ["description", "detail", "message"]) ?? "") || undefined,
     severity: String(first(raw, ["severity", "level"]) ?? "") || undefined,

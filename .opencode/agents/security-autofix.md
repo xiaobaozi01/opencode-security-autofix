@@ -58,20 +58,23 @@ permission:
 ## C. 修复计划
 调用 `fix-planner`：
 - 将 Finding 证据与已确认的 language/framework 一次传给 `autofix_route`；
-- 必须原样传入 `analysis_verdict`；Tool 非 `MATCHED` 时禁止修改；
+- 必须原样传入 `analysis_verdict` 和 `analysis_confidence`；只有高置信度结论才可能确定性路由，Tool 非 `MATCHED` 时禁止修改；
 - 只有 Route 为 `MATCHED` 时才能使用 Tool 返回的 Repair Provider；
 - Provider 指向**领域 Repair Skill**，`strategy` 指向 Skill 内的具体漏洞策略；
 - 同时判断 `AUTO_FIX | AUTO_FIX_WITH_REVIEW | HUMAN_REVIEW | GUIDANCE_ONLY | NOT_SUPPORTED`；
 - 只有前两类允许进入自动修改。
 
 ## D. 最小补丁
+`VERIFY` 模式跳过本节：不得创建 Patch Batch；必须使用用户提供的补丁前历史报告作为 `verification_baseline`，当前扫描仅作为 rescan。没有独立历史 baseline 时只能得到 `INDETERMINATE/HUMAN_REVIEW`。
+
 进入修改前先调用 `fix-validator` 的 `preflight` 阶段。配置 Scanner 时必须保存修复前基线报告，并用 `autofix_compare` 确认原 Finding 为 `PRESENT`；`ABSENT | INDETERMINATE | NOT_RUN` 均不得自动修改。
 
 使用 Preflight Compare 返回的稳定 `finding_key` 更新本 Finding。对完整 `patch_files` 调用 `autofix_patch(action=begin, finding_key=...)`，保存返回的 `batch_id`，然后调用 `code-fixer`：
 - **MINIMAL PATCH ONLY**；
 - 禁止无关重构、全局格式化、顺手修其他漏洞；
 - 修改同一文件/同一方法的批量 Finding 必须串行。
-- 修改完成立即调用 `autofix_patch(action=seal)`；没有实际变更时 Patch Gate 为 `FAIL`。
+- 修改完成立即调用 `autofix_patch(action=seal, files=<code-fixer 返回的实际修改文件>)`；Tool 会对照快照核验，计划外、遗漏、误报或没有实际变更时 Patch Gate 为 `FAIL`。
+- 流程恢复时先调用 `autofix_patch(action=list)`；遗留的 `OPEN | SEALED` 批次必须恢复处理，不能叠加新补丁。
 
 ## E. 统一验证
 补丁完成后调用 `fix-validator`，由它按顺序完成：
@@ -84,7 +87,7 @@ permission:
 用户输入中指定的 Build/Test Task ID 和额外参数必须原样传递给 `fix-validator`，Agent 不得创造未配置的 Task ID。
 
 验证步骤仍然独立记录状态；合并 Agent 不代表删除验证 Gate。未执行必须标记 `NOT_RUN`。
-重扫必须把修复前 `baseline_report` 和修复后 `rescan_report` 交给 `autofix_compare`；只接受 `PRESENT | ABSENT | INDETERMINATE`，Agent 禁止自行把“未找到”解释为 `ABSENT`。
+重扫必须把修复前 `baseline_report` 和修复后 `rescan_report` 交给 `autofix_compare`；只接受 `PRESENT | ABSENT | INDETERMINATE`，并保留 Tool 返回的 `comparison_id`。Agent 禁止自行把“未找到”解释为 `ABSENT`。
 
 ## F. 最终裁决
 调用 `final-judge`，只根据前序证据返回：
@@ -95,6 +98,7 @@ permission:
 - `FIX_REJECTED | HUMAN_REVIEW` -> `autofix_patch(action=rollback)`；
 - Accept 返回 `CONFLICT` 时必须把最终结论降为 `HUMAN_REVIEW`；Rollback 返回 `CONFLICT` 时保留原安全裁决但必须在最终结果中原样报告，禁止宣称代码已恢复。
 - 最终 `patch_batch` 必须保留 Tool 返回的真实 `batch_id` 和状态；`autofix_result` 会核验本地 Receipt。
+- `VERIFY` 不执行上述 Patch Batch 操作，使用 `patch_batch.status=EXISTING` 并保留独立 `verification_baseline`。
 
 同一根因因新证据导致修复失败时，必须先成功回滚失败 Batch，最多额外允许 2 次修复尝试，禁止叠加失败补丁或无限循环。
 

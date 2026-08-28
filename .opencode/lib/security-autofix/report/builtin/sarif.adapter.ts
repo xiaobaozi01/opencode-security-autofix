@@ -29,7 +29,12 @@ function taxonomyReferences(run: any, result: any, rule: any): TaxonomyReference
   const references: TaxonomyReference[] = []
   for (const tag of rule?.properties?.tags ?? []) {
     const cwe = String(tag).match(/CWE-\d+/i)?.[0]
-    if (cwe) references.push({ name: "CWE", id: cwe.toUpperCase(), source: "adapter" })
+    if (cwe) references.push({
+      name: "CWE",
+      id: cwe.toUpperCase(),
+      relationship: "relevant",
+      source: "adapter",
+    })
   }
   for (const taxon of result.taxa ?? []) {
     if (!taxon?.id) continue
@@ -56,9 +61,11 @@ function taxonomyReferences(run: any, result: any, rule: any): TaxonomyReference
   )
 }
 
-function fingerprint(result: any) {
-  const values = Object.values(result.partialFingerprints ?? result.fingerprints ?? {})
-  return values.length ? String(values[0]) : undefined
+function stringMap(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined
+  const entries = Object.entries(value)
+    .filter((entry): entry is [string, string] => typeof entry[1] === "string" && Boolean(entry[1]))
+  return entries.length ? Object.fromEntries(entries) : undefined
 }
 
 function sarifFindings(doc: any) {
@@ -77,10 +84,13 @@ function sarifFindings(doc: any) {
           scanner: driver.name,
           rule_id: ruleId,
           rule_version: driver.semanticVersion ?? driver.version,
-          fingerprint: fingerprint(result),
+          fingerprints: stringMap(result.fingerprints),
+          partial_fingerprints: stringMap(result.partialFingerprints),
+          source: "scanner",
         },
         taxonomies: taxonomyReferences(run, result, rule),
         raw_type: result.properties?.type ?? result.properties?.category,
+        raw_type_source: "scanner",
         title: result.message?.text ?? rule?.shortDescription?.text ?? ruleId,
         severity: result.level,
         location: {

@@ -27,6 +27,51 @@ export interface PreparedSpawnCommand {
   windowsVerbatimArguments?: boolean
 }
 
+export interface KillableProcess {
+  pid: number
+  kill(signal?: number | NodeJS.Signals): void
+}
+
+export function mergeEnvironment(
+  base: Record<string, string>,
+  override: Record<string, string> = {},
+  platform: NodeJS.Platform = process.platform,
+) {
+  if (platform !== "win32") return { ...base, ...override }
+  const merged: Record<string, string> = {}
+  for (const [name, value] of [...Object.entries(base), ...Object.entries(override)]) {
+    const previous = Object.keys(merged).find(key => key.toLowerCase() === name.toLowerCase())
+    if (previous) delete merged[previous]
+    merged[name] = value
+  }
+  return merged
+}
+
+export async function terminateProcessTree(
+  proc: KillableProcess,
+  platform: NodeJS.Platform = process.platform,
+) {
+  if (platform === "win32") {
+    try {
+      const killer = Bun.spawn(["taskkill.exe", "/pid", String(proc.pid), "/t", "/f"], {
+        stdout: "ignore",
+        stderr: "ignore",
+      })
+      if (await killer.exited === 0) return
+    } catch {
+      // Fall through to the runtime's direct child termination.
+    }
+  } else {
+    try {
+      process.kill(-proc.pid, "SIGTERM")
+      return
+    } catch {
+      // The process may not have formed a group yet; fall back to direct kill.
+    }
+  }
+  proc.kill()
+}
+
 const CMD_META = /([()\][%!^"`<>&|;, *?])/g
 
 function environmentValue(env: Record<string, string>, name: string) {

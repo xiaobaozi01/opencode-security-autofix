@@ -23,13 +23,14 @@ permission:
 - task/source；`task.mode` 必须是 `AUTOFIX | VERIFY`
 - finding id、`finding_key`、Rule Identity、Taxonomy、`route`、severity
 - verdict/fixability
-- `analysis_verdict`
+- `analysis_verdict`、`analysis_confidence`
 - rootCause
 - `repairProvider`（领域 Skill）
 - `strategy`（具体漏洞修复策略）
 - patchSummary/files
-- `patch_batch` 必须保留 Tool 返回的 `batch_id` 和最终状态（`ACCEPTED | ROLLED_BACK | CONFLICT`）；只验证已有补丁时使用 `EXISTING`
+- `patch_batch` 必须保留 Tool 返回的 `batch_id` 和最终状态（`ACCEPTED | ROLLED_BACK | CONFLICT`）；只验证已有补丁时使用 `EXISTING`，并提供独立的 `verification_baseline`
 - gates/evidence/notRun
+- `FIX_ACCEPTED` 必须原样保留 `autofix_compare` 返回的 `rescan_comparison_id`
 - remainingRisk/humanChecks
 
 将完整对象序列化为 JSON 字符串，只调用一次 `autofix_result(result_json=...)`。

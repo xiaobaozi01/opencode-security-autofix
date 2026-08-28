@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { prepareSpawnCommand } from "../lib/security-autofix/process/spawn.ts"
+import { mergeEnvironment, prepareSpawnCommand } from "../lib/security-autofix/process/spawn.ts"
 
 test("Windows 通过 PATH/PATHEXT 解析 cmd/bat，原生 exe 和 POSIX 保持直接 argv", () => {
   const maven = prepareSpawnCommand(
@@ -38,4 +38,15 @@ test("Windows 通过 PATH/PATHEXT 解析 cmd/bat，原生 exe 和 POSIX 保持�
   })
   assert.deepEqual(posix.command, ["mvn", "package"])
   assert.equal(posix.launcher, "DIRECT")
+})
+
+test("Windows 环境变量覆盖按名称大小写不敏感合并", () => {
+  assert.deepEqual(
+    mergeEnvironment({ Path: "OLD", TEMP: "one" }, { PATH: "NEW", temp: "two" }, "win32"),
+    { PATH: "NEW", temp: "two" },
+  )
+  assert.deepEqual(
+    mergeEnvironment({ Path: "OLD" }, { PATH: "NEW" }, "darwin"),
+    { Path: "OLD", PATH: "NEW" },
+  )
 })

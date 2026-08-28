@@ -39,6 +39,7 @@ export const autofixScanTool = tool({
       await adapter.scan(scanner, request, {
         worktreeRoot: root,
         configPath: loaded.path,
+        abortSignal: context.abort,
       }),
     )
   },

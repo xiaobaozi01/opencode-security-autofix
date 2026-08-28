@@ -1,7 +1,7 @@
 import { tool } from "@opencode-ai/plugin"
 import path from "node:path"
 import { loadSecurityAutofixConfig } from "../config"
-import { prepareSpawnCommand } from "../process/spawn.ts"
+import { mergeEnvironment, prepareSpawnCommand, terminateProcessTree } from "../process/spawn.ts"
 import { resolveBuildTask, type BuildTaskRequest } from "./build-task"
 
 const namedValues = () =>
@@ -51,40 +51,60 @@ export const autofixBuildTool = tool({
       Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
     )
     const cwd = resolved.cwd ?? root
-    const env = { ...inheritedEnv, ...resolved.env }
+    const env = mergeEnvironment(inheritedEnv, resolved.env)
     const prepared = prepareSpawnCommand(resolved.command, { cwd, env })
-    const proc = Bun.spawn(prepared.command, {
-      cwd,
-      env,
-      stdout: "pipe",
-      stderr: "pipe",
-      windowsVerbatimArguments: prepared.windowsVerbatimArguments,
-    })
-    let timedOut = false
-    const timer = setTimeout(() => {
-      timedOut = true
-      proc.kill()
-    }, resolved.timeoutMs ?? 900000)
-    const [stdout, stderr, code] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ])
-    clearTimeout(timer)
-    const cap = (value: string) => (value.length > 16000 ? value.slice(-16000) : value)
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let removeAbortListener: (() => void) | undefined
+    try {
+      const proc = Bun.spawn(prepared.command, {
+        cwd,
+        env,
+        stdout: "pipe",
+        stderr: "pipe",
+        windowsVerbatimArguments: prepared.windowsVerbatimArguments,
+        maxBuffer: 2_000_000,
+        detached: process.platform !== "win32",
+      })
+      const onAbort = () => { void terminateProcessTree(proc) }
+      context.abort?.addEventListener("abort", onAbort, { once: true })
+      removeAbortListener = () => context.abort?.removeEventListener("abort", onAbort)
+      if (context.abort?.aborted) onAbort()
+      let timedOut = false
+      timer = setTimeout(() => {
+        timedOut = true
+        void terminateProcessTree(proc)
+      }, resolved.timeoutMs ?? 900000)
+      const [stdout, stderr, code] = await Promise.all([
+        new Response(proc.stdout).text(),
+        new Response(proc.stderr).text(),
+        proc.exited,
+      ])
+      const cap = (value: string) => (value.length > 16000 ? value.slice(-16000) : value)
 
-    return JSON.stringify({
-      status: !timedOut && code === 0 ? "PASS" : "FAIL",
-      task: resolved.task,
-      kind: resolved.kind,
-      command: resolved.command,
-      launcher: prepared.launcher,
-      resolved_executable: prepared.resolvedExecutable,
-      cwd: path.relative(root, resolved.cwd ?? root).replace(/\\/g, "/") || ".",
-      exitCode: code,
-      reason: timedOut ? "Build Task 执行超时" : undefined,
-      stdout: cap(stdout),
-      stderr: cap(stderr),
-    })
+      return JSON.stringify({
+        status: !timedOut && code === 0 ? "PASS" : "FAIL",
+        task: resolved.task,
+        kind: resolved.kind,
+        command: resolved.command,
+        launcher: prepared.launcher,
+        resolved_executable: prepared.resolvedExecutable,
+        cwd: path.relative(root, resolved.cwd ?? root).replace(/\\/g, "/") || ".",
+        exitCode: code,
+        reason: timedOut ? "Build Task 执行超时" : undefined,
+        stdout: cap(stdout),
+        stderr: cap(stderr),
+      })
+    } catch (error) {
+      return JSON.stringify({
+        status: "FAIL",
+        task: resolved.task,
+        kind: resolved.kind,
+        command: resolved.command,
+        reason: `Build Task 无法执行：${error instanceof Error ? error.message : String(error)}`,
+      })
+    } finally {
+      if (timer) clearTimeout(timer)
+      removeAbortListener?.()
+    }
   },
 })

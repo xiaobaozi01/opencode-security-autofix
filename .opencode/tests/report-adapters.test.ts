@@ -31,6 +31,7 @@ test("JSON Adapter 识别常见 findings 容器", () => {
     source: "adapter",
   }])
   assert.equal(result.findings[0].rule?.scanner, "demo")
+  assert.equal(result.findings[0].rule?.source, "adapter")
   assert.deepEqual(result.findings[0].raw, {
     id: "F-1",
     taxonomies: [{ name: "CWE", id: "CWE-79" }],
@@ -66,7 +67,9 @@ test("SARIF Adapter 提取规则、位置和 CWE", () => {
     scanner: "demo",
     rule_id: "R1",
     rule_version: undefined,
-    fingerprint: undefined,
+    fingerprints: undefined,
+    partial_fingerprints: undefined,
+    source: "scanner",
   })
   assert.deepEqual(finding.taxonomies, [{
     name: "CWE",
@@ -83,6 +86,26 @@ test("SARIF Adapter 提取规则、位置和 CWE", () => {
   assert.equal(finding.severity, "error")
   assert.equal(finding.description, "SQL injection")
   assert.deepEqual(finding.raw, document.runs[0].results[0])
+})
+
+test("SARIF Adapter 保留全部 full/partial fingerprints", () => {
+  const document = {
+    version: "2.1.0",
+    runs: [{
+      tool: { driver: { name: "demo", rules: [{ id: "R1" }] } },
+      results: [{
+        ruleId: "R1",
+        fingerprints: { stable: "full-1", alternate: "full-2" },
+        partialFingerprints: { "primaryLocationLineHash/v1": "old", "primaryLocationLineHash/v2": "new" },
+      }],
+    }],
+  }
+  const finding = sarifReportAdapter.parse(input(JSON.stringify(document), ".sarif")).findings[0]
+  assert.deepEqual(finding.rule?.fingerprints, { stable: "full-1", alternate: "full-2" })
+  assert.deepEqual(finding.rule?.partial_fingerprints, {
+    "primaryLocationLineHash/v1": "old",
+    "primaryLocationLineHash/v2": "new",
+  })
 })
 
 test("Text Adapter 保留非结构化正文并发出提示", () => {

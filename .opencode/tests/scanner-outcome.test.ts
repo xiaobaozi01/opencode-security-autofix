@@ -1,6 +1,9 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { classifyScanOutcome } from "../lib/security-autofix/scanner/builtin/command.adapter.ts"
+import {
+  classifyScanOutcome,
+  commandScannerAdapter,
+} from "../lib/security-autofix/scanner/builtin/command.adapter.ts"
 
 test("扫描成功且报告存在才返回 EXECUTED", () => {
   assert.deepEqual(classifyScanOutcome(0, true), { status: "EXECUTED", reason: undefined })
@@ -18,4 +21,21 @@ test("扫描超时返回明确原因", () => {
     status: "FAIL",
     reason: "扫描命令执行超时",
   })
+})
+
+test("命令 Scanner 在创建进程前拒绝非法超时和 argv", async () => {
+  const context = { worktreeRoot: process.cwd(), configPath: "config.json" }
+  const timeout = await commandScannerAdapter.scan({
+    adapter: "command",
+    targeted: { command: ["scanner"], timeoutMs: 0 },
+  }, { mode: "targeted" }, context)
+  assert.equal(timeout.status, "FAIL")
+  assert.match(timeout.reason ?? "", /超时时间/)
+
+  const argv = await commandScannerAdapter.scan({
+    adapter: "command",
+    targeted: { command: [""] },
+  }, { mode: "targeted" }, context)
+  assert.equal(argv.status, "FAIL")
+  assert.match(argv.reason ?? "", /argv/)
 })

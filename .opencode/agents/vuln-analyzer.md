@@ -44,7 +44,7 @@ Java/Spring 项目重点检查 Controller、DTO、Service、Mapper/Repository、
 
 ## 输出
 至少返回：
-- `analysis_verdict`, `confidence`
+- `analysis_verdict`, `analysis_confidence`（`HIGH | MEDIUM | LOW | UNKNOWN`）
 - `root_cause`, `source`, `sink`, `propagation`
 - `existing_controls`
 - `language`, `frameworks/components`

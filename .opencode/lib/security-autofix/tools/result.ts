@@ -4,6 +4,7 @@ import { mkdir, writeFile } from "fs/promises"
 import { loadSecurityAutofixConfig } from "../config"
 import { validateFinalReport } from "../workflow/verdict"
 import { verifyPatchBatchReceipt } from "../patch/batch"
+import { verifyComparisonReceipt } from "../finding/comparison-receipt"
 
 type AnyRecord = Record<string, any>
 
@@ -293,6 +294,20 @@ export const autofixResultTool = tool({
     const workflowMode = String(report.task?.mode ?? "AUTOFIX").toUpperCase()
     const receiptErrors: string[] = []
     for (const [index, finding] of report.findings.entries()) {
+      if (String(finding?.verdict ?? "").toUpperCase() === "FIX_ACCEPTED") {
+        const comparisonId = String(finding?.rescan_comparison_id ?? finding?.comparison_id ?? "")
+        const comparison = await verifyComparisonReceipt(
+          root,
+          comparisonId,
+          finding?.finding_key,
+          workflowMode === "VERIFY"
+            ? String(finding?.verification_baseline ?? finding?.baseline_reference ?? "")
+            : undefined,
+        )
+        if (!comparison.valid) {
+          receiptErrors.push(`${finding?.id ?? `Finding-${index + 1}`}: ${comparison.reason}`)
+        }
+      }
       const patchBatch = finding?.patch_batch ?? finding?.patchBatch
       const patchStatus = String(patchBatch?.status ?? "").toUpperCase()
       if (workflowMode === "VERIFY" && patchStatus === "EXISTING") continue

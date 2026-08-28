@@ -32,6 +32,7 @@
 │   └── security-autofix.ts
 ├── tests/
 │   ├── build-task.test.ts
+│   ├── comparison-receipt.test.ts
 │   ├── catalog.test.ts
 │   ├── routing.test.ts
 │   ├── delimited.test.ts
@@ -58,7 +59,7 @@ OpenCode 会自动加载 `.opencode/plugins/security-autofix.ts`。Plugin 对 Ag
 - `autofix_scan`：调用扫描器重扫。
 - `autofix_compare`：使用稳定 Finding 身份比较修复前基线和修复后报告。
 - `autofix_build`：列出或执行项目配置的命名 Build/Test Task。
-- `autofix_patch`：管理 Patch Batch 快照、封存、接受和回滚。
+- `autofix_patch`：管理 Patch Batch 快照、恢复、封存、接受和回滚。
 - `autofix_result`：生成最终 Markdown。
 
 `.opencode/lib/security-autofix/` 是 Plugin 私有运行时实现，不需要 Agent 直接读取。
@@ -114,7 +115,7 @@ Agent 合并只减少编排复杂度，不删除安全验证 Gate。`fix-validat
 ```text
 Report Adapter 提取的 Rule / Taxonomy / raw_type
           + Agent semantic_candidates
-          + analysis_verdict
+          + analysis_verdict / analysis_confidence
           + 已确认的 language / framework
                           ↓
                     autofix_route
@@ -122,7 +123,7 @@ Report Adapter 提取的 Rule / Taxonomy / raw_type
       status + repair_entry_id + provider + strategy
 ```
 
-Router 不使用人为数字评分，而是按 Scanner Rule -> 可信 Taxonomy -> 扫描器原始 Alias 的显式优先级处理。只有 `VULNERABLE` 能进入自动路由；`NOT_VULNERABLE` 返回 `FALSE_POSITIVE`，`PARTIAL | NEED_CONTEXT` 返回 `HUMAN_REVIEW`。`source=analyzer` 或 `relationship=relevant|superset` 的 Taxonomy 不具备确定性路由权限。同一级多路由命中返回 `AMBIGUOUS`；只有 Agent 语义候选时返回 `HUMAN_REVIEW`。
+Router 不使用人为数字评分，而是按可信 Scanner Rule -> 精确 Taxonomy -> 扫描器原始 Alias 的显式优先级处理。只有 `analysis_verdict=VULNERABLE` 且 `analysis_confidence=HIGH` 才能进入自动路由；低置信度结论强制人工复核。`source=analyzer|user`、非扫描器 Alias 或 `relationship=relevant|superset` 的 Taxonomy 不具备确定性路由权限。同一级多路由命中返回 `AMBIGUOUS`；只有 Agent 语义候选时返回 `HUMAN_REVIEW`。
 
 新协议不兼容上一版：`autofix_classify`、`autofix_repair` 和 `StandardVulnerability.classification` 已删除；Agent 与扩展必须使用 `autofix_route` 和 `semantic_candidates`。
 
@@ -155,9 +156,9 @@ security-autofix-results/
 报告正文时间使用 `YYYY-MM-DD HH:mm:ss`，文件名强制由 Tool 使用运行机器本地时间生成，调用方不能指定文件名。
 同一秒内并发生成报告时不会覆盖已有文件，后续报告会追加 `-01`、`-02` 等序号。
 
-自动修改使用绑定稳定 `finding_key` 的 Patch Batch。`begin` 快照计划文件，`seal` 固定验证对象，最终只有 `FIX_ACCEPTED` 调用 `accept`；`FIX_REJECTED | HUMAN_REVIEW` 调用 `rollback`。Accept/Rollback 会生成本地 Receipt，`autofix_result` 必须核验真实 `batch_id + finding_key + status` 后才写报告。
+自动修改使用绑定稳定 `finding_key` 的 Patch Batch。`begin` 快照计划文件和 Git 工作区状态，`seal` 核对实际修改文件并拒绝越界或零修改，最终只有 `FIX_ACCEPTED` 调用 `accept`；`FIX_REJECTED | HUMAN_REVIEW` 调用 `rollback`。中断后可通过 `list/status` 找回 `OPEN | SEALED` 批次，`OPEN` 也可直接回滚。Accept/Rollback 会生成本地 Receipt，`autofix_result` 必须核验真实 `batch_id + finding_key + status` 及非空修改列表后才写报告。
 
-最终裁决硬规则：任一必要 Gate 失败或 Rescan 为 `PRESENT` 时必须拒绝；没有失败但存在 `NOT_RUN | UNKNOWN | INDETERMINATE | WARN` 时必须人工审核；只有全部必要 Gate 为 `PASS`、Rescan 为 `ABSENT`、Route 为 `MATCHED` 且 Patch Receipt 为 `ACCEPTED` 时才能报告 `FIX_ACCEPTED`。`VERIFY` 模式验证已有补丁时使用 `patch_batch.status=EXISTING`。
+最终裁决硬规则：只接受规范 verdict/analysis/Gate 枚举；任一必要 Gate 失败或 Rescan 为 `PRESENT` 时必须拒绝；没有失败但存在 `NOT_RUN | UNKNOWN | INDETERMINATE | WARN` 时必须人工审核；只有全部必要 Gate 为 `PASS`、Rescan 为 `ABSENT`、Route 为 `MATCHED`、Comparison Receipt 有效且 Patch Receipt 为 `ACCEPTED` 时才能报告 `FIX_ACCEPTED`。Comparison Receipt 绑定 `finding_key`、两份不同报告及内容哈希，报告被替换后失效。`VERIFY` 模式使用 `patch_batch.status=EXISTING`，并且必须引用补丁前生成的独立历史 `verification_baseline`；当前扫描不能同时充当 baseline 和 rescan。
 
 ## 6. Report Adapter 扩展
 
@@ -192,6 +193,7 @@ const securityTestReportAdapter: ReportAdapter = {
         rule: {
           scanner: "security-test",
           rule_id: finding.ruleId,
+          source: "scanner",
         },
         taxonomies: (finding.cwes ?? []).map((id) => ({
           name: "CWE",
@@ -199,6 +201,7 @@ const securityTestReportAdapter: ReportAdapter = {
           source: "scanner",
         })),
         raw_type: finding.category,
+        raw_type_source: "scanner",
         title: finding.title,
         description: finding.description,
         severity: finding.severity,
@@ -252,7 +255,7 @@ export const CompanySecurityScannerPlugin: Plugin = async () => {
 
 Targeted Scan 请求使用 `repairEntryId`、`ruleId`、`findingId`。`command` Adapter 对应支持 `{repairEntryId}`、`{ruleId}`、`{findingId}`、`{output}` 占位符。
 
-自动修复必须在修改前保存基线扫描报告，修改后使用 `autofix_compare` 比较。只有修复前基线为 `PRESENT`，并且修复后基于稳定 Fingerprint 得到 `ABSENT`，Rescan Gate 才能通过。弱 Finding ID 或位置在重扫中消失只能得到 `INDETERMINATE`。
+自动修复必须在修改前保存基线扫描报告，修改后使用 `autofix_compare` 比较。只有修复前基线为 `PRESENT`，并且修复后基于稳定 Fingerprint 得到 `ABSENT`，Rescan Gate 才能通过。SARIF 的 `fingerprints` 与全部具名/版本化 `partialFingerprints` 都会保留，比较时使用双方共有项；弱 Finding ID 或位置在重扫中消失只能得到 `INDETERMINATE`。
 
 然后修改 `.opencode/security-autofix.json`：
 
@@ -375,7 +378,7 @@ cd .opencode/tests
 npm test
 ```
 
-49 个测试覆盖 Build Task、Windows `.cmd/.bat` 命令启动、Patch Batch 回滚与冲突保护及 Receipt 校验、Finding 基线/重扫比较、最终裁决硬校验、36 条 Repair Entry、Rule/Taxonomy/Alias 路由优先级、真实性与 Taxonomy 信任边界、内置报告 Adapter、CSV/TSV 和 Scanner 状态判定。
+63 个测试覆盖 Build Task、Windows `.cmd/.bat` 命令启动与环境变量合并、Patch Batch 中断恢复/越界检测/回滚/冲突保护及 Receipt 校验、Comparison Receipt、SARIF 多版本 Fingerprint 的基线/重扫比较、最终裁决硬校验、36 条 Repair Entry、证据来源与分析置信度门禁、内置报告 Adapter、CSV/TSV 和 Scanner 状态判定。
 
 ## 11. 使用
 

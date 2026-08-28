@@ -4,6 +4,7 @@ import {
   type RepairEntry,
 } from "./catalog.ts"
 import type {
+  EvidenceSource,
   RuleIdentity,
   SemanticRouteCandidate,
   TaxonomyReference,
@@ -23,9 +24,11 @@ export type RepairMatchKind = "SCANNER_RULE" | "TAXONOMY" | "ALIAS" | "SEMANTIC"
 
 export interface RepairRouteInput {
   analysis_verdict: AnalysisVerdict
+  analysis_confidence: "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN"
   rule?: RuleIdentity
   taxonomies?: TaxonomyReference[]
   raw_type?: string
+  raw_type_source?: EvidenceSource
   semantic_candidates?: SemanticRouteCandidate[]
   language?: string
   framework?: string
@@ -143,6 +146,13 @@ function deterministicResult(
 
 export function routeFinding(input: RepairRouteInput): RepairRouteResult {
   if (input.analysis_verdict === "NOT_VULNERABLE") {
+    if (input.analysis_confidence !== "HIGH") {
+      return {
+        status: "HUMAN_REVIEW",
+        candidates: [],
+        reason: `NOT_VULNERABLE 的分析置信度为 ${input.analysis_confidence}，不足以确定为误报`,
+      }
+    }
     return {
       status: "FALSE_POSITIVE",
       candidates: [],
@@ -158,12 +168,20 @@ export function routeFinding(input: RepairRouteInput): RepairRouteResult {
         : "缺少漏洞真实性分析结论，禁止自动修改",
     }
   }
+  if (input.analysis_confidence !== "HIGH") {
+    return {
+      status: "HUMAN_REVIEW",
+      candidates: [],
+      reason: `VULNERABLE 的分析置信度为 ${input.analysis_confidence}，禁止自动修改`,
+    }
+  }
 
   const entries = listRepairEntries()
   const scanner = input.rule?.scanner?.trim().toLowerCase()
   const ruleId = input.rule?.rule_id?.trim().toLowerCase()
 
-  if (scanner && ruleId) {
+  const trustedRule = input.rule?.source === "scanner" || input.rule?.source === "adapter"
+  if (scanner && ruleId && trustedRule) {
     const matches = collectMatches(entries, entry =>
       entry.matchers?.scanner_rules
         ?.filter(matcher =>
@@ -176,10 +194,10 @@ export function routeFinding(input: RepairRouteInput): RepairRouteResult {
   }
 
   const trustedTaxonomies = input.taxonomies?.filter(taxonomy =>
-    (taxonomy.source === "scanner" || taxonomy.source === "adapter") &&
-    (taxonomy.relationship === undefined ||
-      taxonomy.relationship === "equal" ||
-      taxonomy.relationship === "subset"),
+    (taxonomy.source === "scanner" &&
+      (taxonomy.relationship === undefined || taxonomy.relationship === "equal" || taxonomy.relationship === "subset")) ||
+    (taxonomy.source === "adapter" &&
+      (taxonomy.relationship === "equal" || taxonomy.relationship === "subset")),
   ) ?? []
   const untrustedTaxonomies = input.taxonomies?.filter(taxonomy =>
     !trustedTaxonomies.includes(taxonomy),
@@ -210,13 +228,17 @@ export function routeFinding(input: RepairRouteInput): RepairRouteResult {
   }
 
   const rawType = normalizedLabel(input.raw_type)
+  let untrustedAliasMatches: EntryMatch[] = []
   if (rawType && rawType !== "OTHER") {
     const matches = collectMatches(entries, entry =>
       entry.matchers?.aliases?.some(alias => normalizedLabel(alias) === rawType)
         ? [`raw_type:${input.raw_type}`]
         : [],
     )
-    if (matches.length) return deterministicResult(matches, "ALIAS", input)
+    if (matches.length) {
+      if (input.raw_type_source === "scanner") return deterministicResult(matches, "ALIAS", input)
+      untrustedAliasMatches = matches
+    }
   }
 
   if (input.semantic_candidates?.length) {
@@ -250,6 +272,14 @@ export function routeFinding(input: RepairRouteInput): RepairRouteResult {
       status: "HUMAN_REVIEW",
       candidates: candidates(untrustedTaxonomyMatches, "TAXONOMY"),
       reason: "Taxonomy 来源或关系不足以支持确定性 Repair 路由",
+    }
+  }
+
+  if (untrustedAliasMatches.length) {
+    return {
+      status: "HUMAN_REVIEW",
+      candidates: candidates(untrustedAliasMatches, "ALIAS"),
+      reason: "原始类型并非扫描器直接证据，必须人工确认后才能选择 Repair Entry",
     }
   }
 

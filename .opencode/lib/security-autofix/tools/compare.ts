@@ -1,6 +1,7 @@
 import { tool } from "@opencode-ai/plugin"
 import path from "node:path"
 import { compareBaselineAndRescan } from "../finding/compare"
+import { writeComparisonReceipt } from "../finding/comparison-receipt"
 import type { FindingIdentityInput } from "../finding/identity"
 import { loadReport } from "../report/load"
 
@@ -48,8 +49,24 @@ export const autofixCompareTool = tool({
     const rescan = args.rescan_file
       ? await loadReport(root, args.rescan_file, "auto", args.rescan_adapter)
       : undefined
-    return JSON.stringify(publicComparison(
-      compareBaselineAndRescan(original, baseline.findings, rescan?.findings),
-    ))
+    const comparison = compareBaselineAndRescan(original, baseline.findings, rescan?.findings)
+    const result: Record<string, unknown> = publicComparison(comparison)
+    if (args.rescan_file) {
+      try {
+        const receipt = await writeComparisonReceipt(root, {
+          status: comparison.status,
+          findingKey: comparison.baseline.findingKey,
+          baselineFile: args.baseline_file,
+          rescanFile: args.rescan_file,
+        })
+        result.comparison_id = receipt.comparisonId
+      } catch (error) {
+        return JSON.stringify({
+          status: "INDETERMINATE",
+          reason: error instanceof Error ? error.message : String(error),
+        })
+      }
+    }
+    return JSON.stringify(result)
   },
 })

@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 闭环一致性与恢复修复
+
+- Patch Batch 支持列举/查询和 `OPEN` 中断回滚，Manifest 原子更新；Git 工作区快照会阻止并恢复计划外修改，零修改批次禁止接受。
+- 最终结果只接受规范 verdict、analysis、confidence 和 Gate 枚举，移除 `fixability` 兼容回退；建议类结论不能携带已应用补丁。
+- VERIFY 必须引用补丁前生成的独立历史 baseline，当前扫描禁止同时充当 baseline 与 rescan；`autofix_compare` 生成绑定 Finding、报告路径和内容哈希的 Comparison Receipt，接受结论必须通过校验。
+- Repair Route 接入 `analysis_confidence` 和字段来源，Analyzer/User 推断不能冒充 Scanner Rule、Taxonomy 或原始 Alias。
+- SARIF Adapter 保留全部 full/partial fingerprints，并按双方共有的具名版本项比较。
+- Build/Scanner 限制输出缓冲、支持调用取消、捕获启动失败；Scanner 在启动前校验超时，报告名加入 UUID；Windows 环境变量按大小写不敏感规则合并。
+- 自动化测试扩展到 63 个。
+
 ## Windows 命令启动修复
 
 - Build Task 和命令型 Scanner 共用跨平台命令启动层。

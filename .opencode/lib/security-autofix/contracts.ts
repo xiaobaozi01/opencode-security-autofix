@@ -15,6 +15,7 @@ export interface StandardVulnerability {
   rule?: RuleIdentity
   taxonomies: TaxonomyReference[]
   raw_type?: string
+  raw_type_source?: "scanner" | "adapter" | "analyzer" | "user"
   semantic_candidates?: SemanticRouteCandidate[]
   severity: Severity
   confidence: Confidence

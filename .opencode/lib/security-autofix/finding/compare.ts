@@ -18,7 +18,17 @@ export interface FindingComparison {
 
 function matchingFindings(anchor: FindingIdentityInput, findings: FindingIdentityInput[]) {
   const anchorKeys = findingIdentityKeys(anchor)
-  for (const kind of ["fingerprint", "identifier", "location"] as const) {
+  if (anchorKeys.fingerprints.length) {
+    const anchorSet = new Set(anchorKeys.fingerprints)
+    const matches = findings.filter(finding =>
+      findingIdentityKeys(finding).fingerprints.some(key => anchorSet.has(key)),
+    )
+    if (matches.length) {
+      const matchedKey = findingIdentityKeys(matches[0]).fingerprints.find(key => anchorSet.has(key))
+      return { kind: "fingerprint" as const, key: matchedKey, matches }
+    }
+  }
+  for (const kind of ["identifier", "location"] as const) {
     const key = anchorKeys[kind]
     if (!key) continue
     const matches = findings.filter(finding => findingIdentityKeys(finding)[kind] === key)

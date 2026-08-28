@@ -8,6 +8,7 @@ export interface RawFinding {
   rule?: RuleIdentity
   taxonomies: TaxonomyReference[]
   raw_type?: string
+  raw_type_source?: "scanner" | "adapter" | "analyzer" | "user"
   title?: string
   description?: string
   severity?: string

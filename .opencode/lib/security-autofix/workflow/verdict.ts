@@ -20,7 +20,7 @@ function status(value: unknown) {
 }
 
 function finalStatus(finding: AnyRecord) {
-  return String(finding.verdict ?? finding.fixability ?? "").trim().toUpperCase()
+  return String(finding.verdict ?? "").trim().toUpperCase()
 }
 
 function analysisVerdict(finding: AnyRecord) {
@@ -37,6 +37,20 @@ function gateStatuses(finding: AnyRecord) {
 }
 
 const FAILURE = new Set(["FAIL", "FAILED", "PRESENT", "REJECTED"])
+const VERDICTS = new Set([
+  "FIX_ACCEPTED",
+  "FIX_REJECTED",
+  "HUMAN_REVIEW",
+  "FALSE_POSITIVE",
+  "GUIDANCE_ONLY",
+  "NOT_SUPPORTED",
+])
+const ANALYSIS_VERDICTS = new Set(["VULNERABLE", "NOT_VULNERABLE", "PARTIAL", "NEED_CONTEXT"])
+const CONFIDENCES = new Set(["HIGH", "MEDIUM", "LOW", "UNKNOWN"])
+const GATE_STATUSES = new Set([
+  "PASS", "FAIL", "FAILED", "PRESENT", "ABSENT", "REJECTED", "NOT_RUN", "INDETERMINATE",
+  "WARN", "UNKNOWN",
+])
 
 export function validateFinalFinding(
   finding: AnyRecord,
@@ -47,6 +61,7 @@ export function validateFinalFinding(
   const errors: string[] = []
   const verdict = finalStatus(finding)
   const analysis = analysisVerdict(finding)
+  const confidence = String(finding.analysis_confidence ?? "").trim().toUpperCase()
   const route = String(finding.route?.status ?? "").trim().toUpperCase()
   const gates = gateStatuses(finding)
   const values = Object.values(gates)
@@ -57,14 +72,42 @@ export function validateFinalFinding(
   const patchState = patchBatchStatus(finding)
   const verifiesExistingPatch = workflowMode.toUpperCase() === "VERIFY" && patchState === "EXISTING"
 
+  if (!VERDICTS.has(verdict)) {
+    errors.push(`${label}: verdict 必须是受支持的最终结论，当前为 ${verdict || "缺失"}`)
+  }
+  if (!ANALYSIS_VERDICTS.has(analysis)) {
+    errors.push(`${label}: analysis_verdict 不受支持：${analysis}`)
+  }
+  if (!CONFIDENCES.has(confidence)) {
+    errors.push(`${label}: analysis_confidence 不受支持：${confidence || "缺失"}`)
+  }
+  for (const [name, gateStatus] of Object.entries(gates)) {
+    if (gateStatus && !GATE_STATUSES.has(gateStatus)) {
+      errors.push(`${label}: Gate ${name} 的状态不受支持：${gateStatus}`)
+    }
+  }
+
   if (analysis === "NOT_VULNERABLE" && verdict !== "FALSE_POSITIVE") {
     errors.push(`${label}: analysis_verdict=NOT_VULNERABLE 时最终结论必须是 FALSE_POSITIVE`)
+  }
+  if (["VULNERABLE", "NOT_VULNERABLE"].includes(analysis) && confidence !== "HIGH" &&
+      ["FIX_ACCEPTED", "FALSE_POSITIVE"].includes(verdict)) {
+    errors.push(`${label}: ${verdict} 要求 analysis_confidence=HIGH`)
   }
   if (["PARTIAL", "NEED_CONTEXT"].includes(analysis) && verdict !== "HUMAN_REVIEW") {
     errors.push(`${label}: analysis_verdict=${analysis} 时最终结论必须是 HUMAN_REVIEW`)
   }
   if (verdict === "FALSE_POSITIVE" && analysis !== "NOT_VULNERABLE") {
     errors.push(`${label}: FALSE_POSITIVE 必须有 NOT_VULNERABLE 分析结论`)
+  }
+  if (route === "FALSE_POSITIVE" && verdict !== "FALSE_POSITIVE") {
+    errors.push(`${label}: route.status=FALSE_POSITIVE 时最终结论必须是 FALSE_POSITIVE`)
+  }
+  if (verdict === "NOT_SUPPORTED" && route !== "NOT_SUPPORTED") {
+    errors.push(`${label}: NOT_SUPPORTED 必须有同名 Repair Route`)
+  }
+  if (verdict === "GUIDANCE_ONLY" && route !== "UNCLASSIFIED") {
+    errors.push(`${label}: GUIDANCE_ONLY 必须有 UNCLASSIFIED Repair Route`)
   }
 
   if (hasFailure && verdict !== "FIX_REJECTED") {
@@ -80,6 +123,13 @@ export function validateFinalFinding(
     if (patchState !== "ACCEPTED" && !verifiesExistingPatch) {
       errors.push(`${label}: FIX_ACCEPTED 必须有 patch_batch.status=ACCEPTED`)
     }
+    if (workflowMode.toUpperCase() === "VERIFY" &&
+        !String(finding.verification_baseline ?? finding.baseline_reference ?? "").trim()) {
+      errors.push(`${label}: VERIFY 的 FIX_ACCEPTED 必须引用独立的历史 baseline`)
+    }
+    if (!String(finding.rescan_comparison_id ?? finding.comparison_id ?? "").trim()) {
+      errors.push(`${label}: FIX_ACCEPTED 必须引用 autofix_compare 生成的 Comparison Receipt`)
+    }
   }
 
   if (verdict === "FIX_REJECTED") {
@@ -92,6 +142,11 @@ export function validateFinalFinding(
   if (verdict === "HUMAN_REVIEW" && gates.patch === "PASS" && !verifiesExistingPatch &&
       !["ROLLED_BACK", "CONFLICT"].includes(patchState)) {
     errors.push(`${label}: 未被接受的 Patch 必须回滚或明确报告 CONFLICT`)
+  }
+
+  if (["FALSE_POSITIVE", "GUIDANCE_ONLY", "NOT_SUPPORTED"].includes(verdict) &&
+      (gates.patch === "PASS" || ["OPEN", "SEALED", "ACCEPTED"].includes(patchState))) {
+    errors.push(`${label}: ${verdict} 不得保留已应用或未结束的 Patch Batch`)
   }
 
   if (["FIX_ACCEPTED", "FIX_REJECTED"].includes(verdict) && !analysis) {
@@ -107,12 +162,15 @@ export function validateFinalFinding(
 
 export function validateFinalReport(report: AnyRecord): string[] {
   if (!Array.isArray(report.findings)) return ["result_json.findings 必须是数组"]
-  const workflowMode = String(report.task?.mode ?? "AUTOFIX")
-  return report.findings.flatMap((finding: unknown, index: number) =>
+  const workflowMode = String(report.task?.mode ?? "").trim().toUpperCase()
+  const reportErrors = ["AUTOFIX", "VERIFY"].includes(workflowMode)
+    ? []
+    : ["result_json.task.mode 必须明确为 AUTOFIX 或 VERIFY"]
+  return reportErrors.concat(report.findings.flatMap((finding: unknown, index: number) =>
     validateFinalFinding(
       finding && typeof finding === "object" ? finding as AnyRecord : {},
       index,
       workflowMode,
     ),
-  )
+  ))
 }

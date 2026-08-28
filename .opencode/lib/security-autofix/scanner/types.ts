@@ -13,6 +13,8 @@ export interface ScannerAdapterContext {
   worktreeRoot: string
   /** .opencode/security-autofix.json 的绝对路径 */
   configPath: string
+  /** OpenCode 取消本次工具调用时中止扫描进程 */
+  abortSignal?: AbortSignal
 }
 
 export interface ScanResult {

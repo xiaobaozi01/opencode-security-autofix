@@ -3,6 +3,8 @@ import path from "node:path"
 import {
   acceptPatchBatch,
   beginPatchBatch,
+  getPatchBatchStatus,
+  listPatchBatches,
   rollbackPatchBatch,
   sealPatchBatch,
 } from "../patch/batch"
@@ -11,13 +13,16 @@ export const autofixPatchTool = tool({
   description:
     "管理隔离 Patch Batch：修改前 begin 快照计划文件，修改后 seal，只有 FIX_ACCEPTED 才 accept，其余结论 rollback。",
   args: {
-    action: tool.schema.enum(["begin", "seal", "accept", "rollback"]),
+    action: tool.schema.enum(["begin", "seal", "accept", "rollback", "status", "list"]),
     batch_id: tool.schema.string().optional(),
     finding_key: tool.schema.string().optional(),
     files: tool.schema.array(tool.schema.string()).optional(),
   },
   async execute(args, context) {
     const root = path.resolve(context.worktree)
+    if (args.action === "list") {
+      return JSON.stringify({ status: "OK", batches: await listPatchBatches(root) })
+    }
     if (args.action === "begin") {
       const result = await beginPatchBatch(root, args.files ?? [], args.finding_key)
       return JSON.stringify({
@@ -30,8 +35,11 @@ export const autofixPatchTool = tool({
     if (!args.batch_id) {
       return JSON.stringify({ status: "FAILED", reason: `${args.action} 必须传入 batch_id` })
     }
+    if (args.action === "status") {
+      return JSON.stringify(await getPatchBatchStatus(root, args.batch_id))
+    }
     if (args.action === "seal") {
-      const result = await sealPatchBatch(root, args.batch_id)
+      const result = await sealPatchBatch(root, args.batch_id, args.files ?? [])
       return JSON.stringify({
         status: result.status,
         batch_id: result.batchId,

@@ -24,6 +24,7 @@ export interface FindingIdentity {
 
 export interface FindingIdentityKeys {
   fingerprint?: string
+  fingerprints: string[]
   identifier?: string
   location?: string
 }
@@ -51,9 +52,29 @@ function ruleParts(input: FindingIdentityInput) {
   return scanner && ruleId ? [scanner, ruleId] : undefined
 }
 
+function fingerprintKeys(input: FindingIdentityInput, rule: string[] | undefined) {
+  if (!rule) return []
+  const values: string[] = []
+  const add = (kind: string, name: string, fingerprint: unknown) => {
+    const normalizedName = value(name)
+    const normalizedFingerprint = value(fingerprint)
+    if (normalizedName && normalizedFingerprint) {
+      values.push(`finding:fp:${digest([...rule, kind, normalizedName, normalizedFingerprint])}`)
+    }
+  }
+  if (input.rule?.fingerprint) add("legacy", "fingerprint", input.rule.fingerprint)
+  for (const [name, fingerprint] of Object.entries(input.rule?.fingerprints ?? {}).sort()) {
+    add("full", name, fingerprint)
+  }
+  for (const [name, fingerprint] of Object.entries(input.rule?.partial_fingerprints ?? {}).sort()) {
+    add("partial", name, fingerprint)
+  }
+  return [...new Set(values)]
+}
+
 export function findingIdentityKeys(input: FindingIdentityInput): FindingIdentityKeys {
   const rule = ruleParts(input)
-  const fingerprint = value(input.rule?.fingerprint)
+  const fingerprints = fingerprintKeys(input, rule)
   const id = value(input.original_id) ?? value(input.id)
   const file = normalizedFile(input.location?.file)
   const method = normalized(input.location?.method)
@@ -62,9 +83,8 @@ export function findingIdentityKeys(input: FindingIdentityInput): FindingIdentit
     : undefined
 
   return {
-    fingerprint: rule && fingerprint
-      ? `finding:fp:${digest([...rule, fingerprint])}`
-      : undefined,
+    fingerprint: fingerprints[0],
+    fingerprints,
     identifier: rule && id ? `finding:id:${digest([...rule, id])}` : undefined,
     location: rule && file && (method || startLine)
       ? `finding:location:${digest([...rule, file, method ?? `line:${startLine}`])}`
@@ -74,7 +94,6 @@ export function findingIdentityKeys(input: FindingIdentityInput): FindingIdentit
 
 export function findingIdentity(input: FindingIdentityInput): FindingIdentity {
   const rule = ruleParts(input)
-  const fingerprint = value(input.rule?.fingerprint)
   const id = value(input.original_id) ?? value(input.id)
   const file = normalizedFile(input.location?.file)
   const method = normalized(input.location?.method)
@@ -83,9 +102,9 @@ export function findingIdentity(input: FindingIdentityInput): FindingIdentity {
     : undefined
   const keys = findingIdentityKeys(input)
 
-  if (keys.fingerprint) {
+  if (keys.fingerprints.length) {
     return {
-      key: keys.fingerprint,
+      key: keys.fingerprints[0],
       strength: "FINGERPRINT",
       evidence: [`scanner:${rule?.[0]}`, `rule:${rule?.[1]}`, "fingerprint"],
     }

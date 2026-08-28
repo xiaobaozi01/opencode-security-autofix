@@ -20,9 +20,9 @@ permission:
 
 ## Repair Provider 路由
 统一调用一次 `autofix_route`：
-1. 原样传入 `vuln-analyzer` 的 `analysis_verdict` 及 Finding 的 `rule`、`taxonomies`、`raw_type` 和 `semantic_candidates`。
+1. 原样传入 `vuln-analyzer` 的 `analysis_verdict`、`analysis_confidence`，以及 Finding 的 `rule`、`taxonomies`、`raw_type`、`raw_type_source` 和 `semantic_candidates`。
 2. 同时传入 `vuln-analyzer` 已确认的 language/framework；未知信息不得猜测。
-3. Tool 按 Scanner Rule -> Taxonomy -> 原始 Alias 的明确优先级匹配 Catalog，并验证语言/框架适用性。
+3. Tool 只把有可信来源的 Scanner Rule、精确 Taxonomy 和扫描器原始 Alias 用作确定性证据，并验证语言/框架适用性；模型补充字段只能触发人工复核。
 4. 只有 `MATCHED` 才能使用 Tool 返回的 `repair_entry_id`、`repair_provider` 和 `strategy`。
 5. 仅有 Agent 语义候选时 Tool 必须返回 `HUMAN_REVIEW`，禁止自行升级为 `MATCHED`。
 6. 保留 Tool 完整返回值为 `route`，禁止编造 Skill/strategy。

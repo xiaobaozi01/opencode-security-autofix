@@ -38,3 +38,22 @@ test("修复前基线未复现时结果为 INDETERMINATE", () => {
   const result = compareBaselineAndRescan(finding(), [], [])
   assert.equal(result.status, "INDETERMINATE")
 })
+
+test("SARIF 多版本 partial fingerprint 使用双方共有版本匹配", () => {
+  const original = finding({
+    rule: {
+      scanner: "demo",
+      rule_id: "R-1",
+      partial_fingerprints: { "lineHash/v1": "old", "lineHash/v2": "shared" },
+    },
+  })
+  const rescan = finding({
+    original_id: "F-2",
+    rule: {
+      scanner: "demo",
+      rule_id: "R-1",
+      partial_fingerprints: { "lineHash/v2": "shared", "lineHash/v3": "future" },
+    },
+  })
+  assert.equal(compareBaselineAndRescan(original, [original], [rescan]).status, "PRESENT")
+})
