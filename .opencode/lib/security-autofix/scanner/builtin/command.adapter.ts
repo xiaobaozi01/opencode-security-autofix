@@ -1,5 +1,6 @@
 import path from "path"
 import { mkdir } from "node:fs/promises"
+import { prepareSpawnCommand } from "../../process/spawn.ts"
 import type {
   ScanRequest,
   ScanResult,
@@ -68,7 +69,17 @@ export const commandScannerAdapter: ScannerAdapter = {
       throw new Error("扫描命令参数包含非法换行字符")
     }
 
-    const proc = Bun.spawn(cmd, { cwd: root, stdout: "pipe", stderr: "pipe" })
+    const env = Object.fromEntries(
+      Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
+    )
+    const prepared = prepareSpawnCommand(cmd, { cwd: root, env })
+    const proc = Bun.spawn(prepared.command, {
+      cwd: root,
+      env,
+      stdout: "pipe",
+      stderr: "pipe",
+      windowsVerbatimArguments: prepared.windowsVerbatimArguments,
+    })
     const configuredTimeout = Number(spec.timeoutMs ?? 300000)
     if (!Number.isFinite(configuredTimeout) || configuredTimeout <= 0) {
       throw new Error(`非法扫描超时时间：${String(spec.timeoutMs)}`)

@@ -343,6 +343,10 @@ Task 字段：
 - `description`：可选说明，只用作选择辅助信息。
 - `env`、`timeoutMs`：可选默认环境变量和超时时间。
 
+命令仍按 argv 数组执行。Windows 上会先按当前 Task 的 `PATH/PATHEXT` 解析可执行入口：
+`mvn.cmd`、`npm.cmd`、`pnpm.cmd`、`yarn.cmd`、`gradlew.bat` 等批处理入口只在启动时通过
+`cmd.exe` 执行并逐项转义参数；`.exe/.com`、macOS 和 Linux 命令继续直接执行，不需要在配置中写平台分支。
+
 不传 `task` 时只列出任务：
 
 ```json
@@ -371,7 +375,7 @@ cd .opencode/tests
 npm test
 ```
 
-48 个测试覆盖 Build Task、Patch Batch 回滚与冲突保护及 Receipt 校验、Finding 基线/重扫比较、最终裁决硬校验、36 条 Repair Entry、Rule/Taxonomy/Alias 路由优先级、真实性与 Taxonomy 信任边界、内置报告 Adapter、CSV/TSV 和 Scanner 状态判定。
+49 个测试覆盖 Build Task、Windows `.cmd/.bat` 命令启动、Patch Batch 回滚与冲突保护及 Receipt 校验、Finding 基线/重扫比较、最终裁决硬校验、36 条 Repair Entry、Rule/Taxonomy/Alias 路由优先级、真实性与 Taxonomy 信任边界、内置报告 Adapter、CSV/TSV 和 Scanner 状态判定。
 
 ## 11. 使用
 

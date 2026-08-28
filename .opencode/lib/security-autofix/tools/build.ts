@@ -1,6 +1,7 @@
 import { tool } from "@opencode-ai/plugin"
 import path from "node:path"
 import { loadSecurityAutofixConfig } from "../config"
+import { prepareSpawnCommand } from "../process/spawn.ts"
 import { resolveBuildTask, type BuildTaskRequest } from "./build-task"
 
 const namedValues = () =>
@@ -49,11 +50,15 @@ export const autofixBuildTool = tool({
     const inheritedEnv = Object.fromEntries(
       Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
     )
-    const proc = Bun.spawn(resolved.command, {
-      cwd: resolved.cwd ?? root,
-      env: { ...inheritedEnv, ...resolved.env },
+    const cwd = resolved.cwd ?? root
+    const env = { ...inheritedEnv, ...resolved.env }
+    const prepared = prepareSpawnCommand(resolved.command, { cwd, env })
+    const proc = Bun.spawn(prepared.command, {
+      cwd,
+      env,
       stdout: "pipe",
       stderr: "pipe",
+      windowsVerbatimArguments: prepared.windowsVerbatimArguments,
     })
     let timedOut = false
     const timer = setTimeout(() => {
@@ -73,6 +78,8 @@ export const autofixBuildTool = tool({
       task: resolved.task,
       kind: resolved.kind,
       command: resolved.command,
+      launcher: prepared.launcher,
+      resolved_executable: prepared.resolvedExecutable,
       cwd: path.relative(root, resolved.cwd ?? root).replace(/\\/g, "/") || ".",
       exitCode: code,
       reason: timedOut ? "Build Task 执行超时" : undefined,

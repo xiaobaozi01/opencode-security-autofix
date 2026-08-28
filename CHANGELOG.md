@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## Windows 命令启动修复
+
+- Build Task 和命令型 Scanner 共用跨平台命令启动层。
+- Windows 按 Task 环境的 `PATH/PATHEXT` 解析 `mvn.cmd`、`npm.cmd`、`pnpm.cmd`、`gradlew.bat` 等入口，并通过 `cmd.exe` 安全转义参数。
+- Windows 原生 `.exe/.com` 及 macOS/Linux 命令继续使用直接 argv 执行，不引入 `cross-spawn` 依赖。
+- 自动化测试扩展到 49 个。
+
 ## 修复闭环硬门禁版本
 
 - 将 `VULNERABLE | NOT_VULNERABLE | PARTIAL | NEED_CONTEXT` 接入确定性 Repair Route 门禁，误报和证据不足项不能进入自动修改。

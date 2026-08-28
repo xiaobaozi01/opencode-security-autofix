@@ -50,3 +50,11 @@ export type {
   SemanticRouteCandidate,
   TaxonomyReference,
 } from "./finding/types"
+
+export { prepareSpawnCommand } from "./process/spawn"
+export type {
+  CommandLauncher,
+  ExecutableResolver,
+  PreparedSpawnCommand,
+  PrepareSpawnOptions,
+} from "./process/spawn"

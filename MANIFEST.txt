@@ -16,6 +16,7 @@
 .opencode/lib/security-autofix/finding/identity.ts
 .opencode/lib/security-autofix/finding/compare.ts
 .opencode/lib/security-autofix/patch/batch.ts
+.opencode/lib/security-autofix/process/spawn.ts
 .opencode/lib/security-autofix/repair/catalog.ts
 .opencode/lib/security-autofix/repair/router.ts
 .opencode/lib/security-autofix/report/builtin/delimited.adapter.ts
@@ -58,6 +59,7 @@
 .opencode/tests/routing.test.ts
 .opencode/tests/scanner-outcome.test.ts
 .opencode/tests/verdict.test.ts
+.opencode/tests/windows-command.test.ts
 CHANGELOG.md
 MANIFEST.txt
 README.md
