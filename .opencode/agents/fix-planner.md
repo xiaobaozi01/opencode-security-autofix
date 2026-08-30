@@ -36,6 +36,8 @@ permission:
 
 只能选择：`AUTO_FIX | AUTO_FIX_WITH_REVIEW | HUMAN_REVIEW | GUIDANCE_ONLY | NOT_SUPPORTED`。
 
+`AUTO_FIX` 表示允许自动生成、验证，并在全部 Gate 通过后自动接受补丁。`AUTO_FIX_WITH_REVIEW` 表示允许自动生成和验证候选补丁，但最终必须由人确认；它不得因自动 Gate 全部通过而升级为 `AUTO_FIX` 或直接接受。
+
 授权策略、租户边界、生产域名、密钥迁移、历史数据迁移等需要业务决定时必须 `HUMAN_REVIEW`。无法找到适用 strategy 时不得创造新策略。
 
 ## 输出
@@ -45,6 +47,8 @@ permission:
 - `strategy_selection: SELECTED | AMBIGUOUS | UNCLASSIFIED | NOT_SUPPORTED`
 - `repair_provider`, `strategy`；仅 `SELECTED` 时填写
 - `fixability`, `risk`, `reason`
+- `review_required: true | false`；`AUTO_FIX_WITH_REVIEW` 时必须为 `true`
+- `review_reason`, `required_human_checks`；需要人工审核时必须具体填写
 - `language`, `frameworks`
 - `patch_files`：完整计划文件列表
 - `changes`

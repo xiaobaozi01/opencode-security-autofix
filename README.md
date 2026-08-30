@@ -99,6 +99,8 @@ Build、Test 和 Scanner 命令只能来自：
 - 补丁前 Finding 能在可信 baseline 中确认；
 - 存在足够的验证路径。
 
+其中 `AUTO_FIX` 可以在全部 Gate 通过后自动接受；`AUTO_FIX_WITH_REVIEW` 只允许生成和验证候选补丁，本次运行最终必须为 `HUMAN_REVIEW`，等待人工确认后再决定是否保留。
+
 否则返回 `HUMAN_REVIEW`、`GUIDANCE_ONLY`、`NOT_SUPPORTED` 或 `FALSE_POSITIVE`。
 
 ## Finding 比较
