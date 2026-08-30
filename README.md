@@ -41,22 +41,21 @@ vuln-analyzer
     ↓
 fix-planner
     ↓
-fix-validator (preflight)
+fix-validator (task_preflight)
     ↓
-code-fixer
+单 Finding：code-fixer → post_patch
+多 Finding：Cluster → detached worktrees → candidate patches
     ↓
-fix-validator (post_patch)
+主工作区串行集成 → fix-validator (final_batch)
     ↓
-final-judge
-    ↓
-result-reporter
+final-judge → result-reporter
 ```
 
 各 Subagent 使用严格 JSON 交接结果。主 Agent 负责维持 Finding、分析、计划、补丁和验证证据之间的一致性。
 
 ## 使用
 
-将 `.opencode/` 合并到目标项目，然后使用：
+将 `.opencode/` 合并到目标项目。需要处理多 Finding 时，还应在目标项目的 `.gitignore` 中加入 `security-autofix-results/`，然后使用：
 
 ```text
 /security-fix <漏洞描述、Finding 或文件位置>
@@ -126,11 +125,26 @@ Build、Test 和 Scanner 命令只能来自：
 - Rescan
 - Regression Review
 
-任一 Gate 失败或 Rescan 为 `PRESENT` 时结论为 `FIX_REJECTED`；没有失败但存在未执行、不确定或警告时结论为 `HUMAN_REVIEW`；只有普通 Gate 全部 `PASS` 且 Rescan 为 `ABSENT` 时才允许 `FIX_ACCEPTED`。
+任一 Gate 失败或 Rescan 为 `PRESENT` 时结论为 `FIX_REJECTED`；没有失败但存在未执行、不确定或警告时结论为 `HUMAN_REVIEW`；只有 `fixability=AUTO_FIX`、普通 Gate 全部 `PASS` 且 Rescan 为 `ABSENT` 时才允许 `FIX_ACCEPTED`。`AUTO_FIX_WITH_REVIEW` 即使自动验证全部通过也仍为 `HUMAN_REVIEW`。
 
 ## 工作区安全
 
 建议在干净的 Git 工作区或独立 worktree 中运行。工作流会在修改前后检查 `git status` 和 `git diff`，并拒绝计划外修改。失败补丁不会自动执行破坏性恢复；报告会列出修改范围，由用户决定保留或恢复。
+
+## 多 Finding 并行 Worktree
+
+同一输入包含多条 Finding 时，自动修改必须使用 `PARALLEL_WORKTREE`，不得让多个修复 Agent 共享主工作区：
+
+1. 在任务起始 `HEAD` 上完成只读分析和计划，根据文件、符号、组件、Source/Sink、安全组件和根因聚类。
+2. 每个 Cluster 创建在 `security-autofix-results/worktrees/<run-id>/<cluster-id>` 下的 detached Git worktree。不同 Cluster 可以并行，Cluster 内必须串行。
+3. Worktree 中不 commit、不创建分支、不 stash；验证器将完整 Diff 导出到 `security-autofix-results/patches/<run-id>/<cluster-id>.patch`。
+4. 主工作区重新分析每个候选影响。已被先前 Patch 解决的 Finding 记录 `RESOLVED_BY_PRIOR_PATCH` 和 `patch_owner`，不重复应用。
+5. 其余 Patch 必须先通过 `git apply --check`，再经用户批准串行执行 `git apply`；禁止 `--3way`、强制应用和自动解决冲突。
+6. 全部候选处理后在主工作区执行一次 `final_batch`，重新完成累计 Patch Scope、Build、Test、完整 Rescan 和 Regression Review，然后才进行最终裁决。
+
+多 Finding Worktree 模式要求任务开始时工作区完全干净、结果目录已被 Git 忽略且用户能够逐次审批状态变更命令。不满足时返回 `HUMAN_REVIEW`。不得为此模式主动启用 OpenCode `--auto`；它会自动批准原本需要确认的 Worktree、Patch 写入和集成命令。候选 Worktree 可能缺少未跟踪依赖；工具包不会为此自动安装依赖，相关候选 Gate 使用 `NOT_RUN`，最终以主工作区验证为准。
+
+成功集成后不会自动强制删除带未提交补丁的 Worktree。报告会列出保留路径；只有用户明确批准后才执行精确的 `git worktree remove --force <path>` 和 `git worktree prune`。
 
 ## 修复报告
 

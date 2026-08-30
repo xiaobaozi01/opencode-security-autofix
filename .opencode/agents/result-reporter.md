@@ -28,10 +28,11 @@ permission:
 
 1. 任务模式、输入来源、生成时间。
 2. Finding 总数及各最终状态数量。
-3. 每条 Finding 的 Rule、CWE、位置、真实性结论、根因、Skill/strategy、补丁摘要和修改文件。
-4. Analysis、Patch Scope、Security Review、Build、Tests、Rescan、Regression Review 的状态与证据。
-5. 未执行项、剩余风险、人工检查项和工作区处置状态。
+3. 执行模式、任务起始 HEAD；Worktree 模式还要列出 Cluster、候选 Worktree、Patch Artifact、集成顺序、应用/跳过原因和保留的 Worktree。
+4. 每条 Finding 的 Rule、CWE、位置、真实性结论、根因、Skill/strategy、Cluster、直接 Patch 或 `patch_owner`、补丁摘要和修改文件。
+5. 区分候选 Worktree 验证与主工作区 `final_batch`；最终状态只能引用后者的 Analysis、Patch Scope、Security Review、Build、Tests、Rescan 和 Regression Review。
+6. 未执行项、Patch 冲突、剩余风险、人工检查项和工作区处置状态。
 
 ## 输出
 
-返回 `status: WRITTEN | FAILED`、`report_path`、`finding_count` 和可选 `reason`。
+返回 `status: WRITTEN | FAILED`、`report_path`、`finding_count`、`execution_mode`、`cluster_count` 和可选 `reason`。

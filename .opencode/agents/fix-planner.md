@@ -32,6 +32,12 @@ permission:
 
 加载候选 Skill，确认其中存在与根因匹配的 strategy。Scanner Rule、明确 CWE、Source/Sink 和代码事实一致时可选择 `SELECTED`；只有标题、模糊 CWE 或模型语义推断时使用 `AMBIGUOUS` 或 `UNCLASSIFIED`。
 
+## 并行与聚类
+
+规划时同时识别 Finding 之间的交互边界：计划文件、方法/类、组件、Source/Sink、共享安全组件和共同根因。只有能够证明修改范围互不影响时才使用 `parallelization=SAFE_INDEPENDENT`；任一边界重叠时使用 `SERIAL_REQUIRED`，信息不足时使用 `UNKNOWN`。`UNKNOWN` 不得并行。
+
+`cluster_hints` 只是供主 Agent 聚类的证据，不能替代 `patch_files`。需要在同一 Cluster 内处理的 Finding 必须说明原因和建议顺序。
+
 ## 可修复性
 
 只能选择：`AUTO_FIX | AUTO_FIX_WITH_REVIEW | HUMAN_REVIEW | GUIDANCE_ONLY | NOT_SUPPORTED`。
@@ -51,6 +57,9 @@ permission:
 - `review_reason`, `required_human_checks`；需要人工审核时必须具体填写
 - `language`, `frameworks`
 - `patch_files`：完整计划文件列表
+- `interaction_keys`：可能与其他 Finding 重叠的文件、符号、组件、Source/Sink 和安全组件
+- `parallelization: SAFE_INDEPENDENT | SERIAL_REQUIRED | UNKNOWN`
+- `cluster_hints`, `ordering_constraints`
 - `changes`
 - `security_invariant`
 - `behavior_constraints`
