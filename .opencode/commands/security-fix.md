@@ -1,14 +1,12 @@
 ---
-description: "分析并自动修复一条或多条安全漏洞"
+description: "分析并修复一条或多条安全问题"
 agent: security-autofix
 ---
 
-针对当前用户有权修改的项目执行 Security AutoFix 防御性修复流程。
-
-输入：
+以 `AUTOFIX` 模式处理以下安全问题：
 
 $ARGUMENTS
 
-如果输入包含漏洞描述、文件路径、CWE、扫描器 Finding 等信息，先标准化，再完成漏洞确认、修复前基线、隔离 Patch Batch、构建/测试、安全审查、确定性重扫比较和最终裁决。`NOT_VULNERABLE | PARTIAL | NEED_CONTEXT` 禁止自动修改；Patch Batch 必须通过 `autofix_patch(action=finalize)` 在接受前复核全部必要 Gate 和 Comparison Receipt，其他已应用 Batch 必须回滚。
+先标准化输入并确认漏洞真实性，再选择领域 Skill、制定最小补丁、执行修改前检查、串行修改、构建/测试/安全重扫和最终裁决。证据不足、工作区范围不清或验证无法完成时停止自动修改并转为人工审核。
 
-流程结束后必须调用 `result-reporter`，在 `security-autofix-results/` 下生成本次任务唯一的一份 Markdown 总报告，并向用户返回报告路径。
+流程结束后生成一份 Markdown 总报告并返回路径。不得执行 commit、push、发布、部署、迁移或 Secret 操作。

@@ -1,7 +1,6 @@
 ---
 name: fix-xml-deserialization
-description: "修复 XXE、XML 注入、不安全反序列化与 DDE/公式注入。"
-compatibility: opencode
+description: "当 FixPlan 处理 XXE、XML 注入、不安全反序列化或 DDE/公式注入时使用。"
 metadata:
   toolkit: security-autofix
   purpose: defensive-repair
@@ -10,7 +9,7 @@ metadata:
 
 ## 使用方式
 
-Repair Catalog 会传入 `strategy`。只执行与该 `strategy` 对应的章节；不要因为加载了本领域 Skill 就顺便修复其他漏洞。
+FixPlan 会指定 `strategy`。只执行与该 `strategy` 对应的章节；如果代码事实与策略不匹配，停止修改并返回 `PLAN_INVALIDATED`。不要因为加载了本领域 Skill 就顺便修复其他漏洞。
 
 ## 通用原则
 

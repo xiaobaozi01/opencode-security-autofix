@@ -1,8 +1,8 @@
-# OpenCode Security AutoFix 工具包
+# Security AutoFix
 
-面向 OpenCode 的防御性安全漏洞自动修复工具包。当前版本采用 **Agent/Skill 声明层 + Local Plugin 运行时层**，可以直接合并进团队已有 `.opencode/` 工具库，不再要求项目根目录保留独立 `security-autofix/` 目录。
+Security AutoFix 是一个由 Agent、Subagent 和领域 Skill 组成的防御性安全修复工具包。它使用宿主提供的文件读取、代码搜索、编辑、终端和委派能力，完成安全问题标准化、真实性分析、最小修复、验证、裁决和报告。
 
-## 1. 目录结构
+## 目录
 
 ```text
 .opencode/
@@ -15,70 +15,22 @@
 │   ├── fix-validator.md
 │   ├── final-judge.md
 │   └── result-reporter.md
-├── skills/
-│   ├── fix-injection/
-│   ├── fix-xml-deserialization/
-│   ├── fix-web-security/
-│   ├── fix-request-security/
-│   ├── fix-auth-security/
-│   ├── fix-crypto-secret/
-│   ├── fix-code-security/
-│   └── fix-dependency-config/
 ├── commands/
 │   ├── security-fix.md
 │   ├── security-fix-report.md
 │   └── security-verify.md
-├── plugins/
-│   └── security-autofix.ts
-├── tests/
-│   ├── build-task.test.ts
-│   ├── comparison-receipt.test.ts
-│   ├── catalog.test.ts
-│   ├── routing.test.ts
-│   ├── delimited.test.ts
-│   ├── report-adapters.test.ts
-│   ├── scanner-outcome.test.ts
-│   └── package.json
-├── lib/
-│   └── security-autofix/
-│       ├── api.ts
-│       ├── config.ts
-│       ├── contracts.ts
-│       ├── finding/
-│       ├── repair/
-│       ├── report/
-│       ├── scanner/
-│       └── tools/
-└── security-autofix.json
+└── skills/
+    ├── fix-injection/
+    ├── fix-xml-deserialization/
+    ├── fix-web-security/
+    ├── fix-request-security/
+    ├── fix-auth-security/
+    ├── fix-crypto-secret/
+    ├── fix-code-security/
+    └── fix-dependency-config/
 ```
 
-OpenCode 会自动加载 `.opencode/plugins/security-autofix.ts`。Plugin 对 Agent 暴露以下确定性 Tool：
-
-- `autofix_report`：扫描报告解析。
-- `autofix_route`：根据 Finding 证据、语言和框架一次返回 Repair Provider/strategy。
-- `autofix_scan`：调用扫描器重扫。
-- `autofix_compare`：使用稳定 Finding 身份比较修复前基线和修复后报告。
-- `autofix_build`：列出或执行项目配置的命名 Build/Test Task。
-- `autofix_patch`：管理 Patch Batch 快照、恢复、封存，并通过 `finalize` 在接受前复核证据后接受或回滚。
-- `autofix_result`：生成最终 Markdown。
-
-`.opencode/lib/security-autofix/` 是 Plugin 私有运行时实现，不需要 Agent 直接读取。
-
-## 2. 为什么改成 Plugin
-
-职责分为三层：
-
-```text
-Agent / Skill / Command
-        ↓
-Security AutoFix Plugin
-        ↓
-Adapter / Catalog / Tool / Contract
-```
-
-这样团队公共工具包只需要合并 `.opencode/`，不会在项目根目录再出现一套独立运行时目录。
-
-## 3. Agent 流程
+## 工作流
 
 ```text
 security-autofix
@@ -89,320 +41,101 @@ vuln-analyzer
     ↓
 fix-planner
     ↓
-fix-validator (preflight + baseline)
-    ↓
-autofix_patch begin
+fix-validator (preflight)
     ↓
 code-fixer
-    ↓
-autofix_patch seal
     ↓
 fix-validator (post_patch)
     ↓
 final-judge
     ↓
-autofix_patch finalize
-    ↓
 result-reporter
 ```
 
-Agent 合并只减少编排复杂度，不删除安全验证 Gate。`fix-validator` 修改前确认基线 Finding，修改后分别记录 Security Review、Build、Test、Targeted Rescan Compare 和 Regression Review。只有接受的 Patch Batch 会保留在工作区。
+各 Subagent 使用严格 JSON 交接结果。主 Agent 负责维持 Finding、分析、计划、补丁和验证证据之间的一致性。
 
-## 4. Repair Skill
+## 使用
 
-36 类漏洞修复知识合并为 8 个领域 Skill。Agent 负责语义分析，Plugin 只保留一个确定性 Repair 路由边界：
-
-```text
-Report Adapter 提取的 Rule / Taxonomy / raw_type
-          + Agent semantic_candidates
-          + analysis_verdict / analysis_confidence
-          + 已确认的 language / framework
-                          ↓
-                    autofix_route
-                          ↓
-      status + repair_entry_id + provider + strategy
-```
-
-Router 不使用人为数字评分，而是按可信 Scanner Rule -> 精确 Taxonomy -> 扫描器原始 Alias 的显式优先级处理。只有 `analysis_verdict=VULNERABLE` 且 `analysis_confidence=HIGH` 才能进入自动路由；低置信度结论强制人工复核。`source=analyzer|user`、非扫描器 Alias 或 `relationship=relevant|superset` 的 Taxonomy 不具备确定性路由权限。同一级多路由命中返回 `AMBIGUOUS`；只有 Agent 语义候选时返回 `HUMAN_REVIEW`。
-
-新协议不兼容上一版：`autofix_classify`、`autofix_repair` 和 `StandardVulnerability.classification` 已删除；Agent 与扩展必须使用 `autofix_route` 和 `semantic_candidates`。
-
-例如 `SQL_INJECTION` 会路由到：
+将 `.opencode/` 合并到目标项目，然后使用：
 
 ```text
-provider = fix-injection
-strategy = sql-injection
+/security-fix <漏洞描述、Finding 或文件位置>
+/security-fix-report <扫描报告路径>
+/security-verify <已有补丁和补丁前历史报告>
 ```
 
-普通新增漏洞不需要新增 Skill：优先在现有领域 Skill 增加 strategy，并注册一条 Repair Entry。只有出现新的安全领域时才增加新 Skill。
+也可以直接选择 `security-autofix` Agent 并提供同类输入。
 
-## 5. 项目配置
+## 输入
 
-只保留一个项目配置文件：
+支持：
+
+- 用户描述的安全问题；
+- SARIF、JSON、CSV、Markdown 或文本扫描报告；
+- Scanner Finding、CWE、Rule ID、文件和行号；
+- 需要验证的已有安全补丁。
+
+报告过大、内容截断或格式无法可靠理解时，工作流会明确标记警告并停止自动修复相关 Finding。
+
+## 命令发现
+
+Build、Test 和 Scanner 命令只能来自：
+
+1. 用户明确提供；
+2. 仓库 README、开发说明或 Agent 指令；
+3. `package.json`、`pom.xml`、Gradle、Makefile、CI 等项目已有配置。
+
+命令不明确时会请求确认。工具包不会自行安装依赖，也不会执行发布、部署、数据库迁移、远程写入或 Secret 操作。
+
+## 自动修改条件
+
+只有同时满足以下条件才进入代码修改：
+
+- 漏洞真实性为 `VULNERABLE`；
+- 分析置信度为 `HIGH`；
+- 领域 Skill 中存在明确匹配的 strategy；
+- 可修复性为 `AUTO_FIX` 或 `AUTO_FIX_WITH_REVIEW`；
+- 工作区修改范围可区分；
+- 补丁前 Finding 能在可信 baseline 中确认；
+- 存在足够的验证路径。
+
+否则返回 `HUMAN_REVIEW`、`GUIDANCE_ONLY`、`NOT_SUPPORTED` 或 `FALSE_POSITIVE`。
+
+## Finding 比较
+
+安全重扫遵循保守原则：
+
+- 相同 Scanner、Rule 和稳定 Fingerprint 再次出现：`PRESENT`；
+- 相同扫描范围内稳定 Fingerprint 消失：`ABSENT`；
+- 只有 Finding ID、标题、位置或行号时，消失：`INDETERMINATE`；
+- 扫描失败、范围变化或报告不完整：`INDETERMINATE` 或 `NOT_RUN`。
+
+`NOT_RUN` 和 `INDETERMINATE` 都不能视为通过。
+
+## 最终裁决
+
+必要 Gate 包括：
+
+- Analysis
+- Patch Scope
+- Security Review
+- Build
+- Tests
+- Rescan
+- Regression Review
+
+任一 Gate 失败或 Rescan 为 `PRESENT` 时结论为 `FIX_REJECTED`；没有失败但存在未执行、不确定或警告时结论为 `HUMAN_REVIEW`；只有普通 Gate 全部 `PASS` 且 Rescan 为 `ABSENT` 时才允许 `FIX_ACCEPTED`。
+
+## 工作区安全
+
+建议在干净的 Git 工作区或独立 worktree 中运行。工作流会在修改前后检查 `git status` 和 `git diff`，并拒绝计划外修改。失败补丁不会自动执行破坏性恢复；报告会列出修改范围，由用户决定保留或恢复。
+
+## 修复报告
+
+每次任务生成一份：
 
 ```text
-.opencode/security-autofix.json
+security-autofix-results/security-autofix-result-YYYY-MM-DD-HH-mm-ss.md
 ```
 
-默认内容已经包含 Scanner 和结果目录配置。没有配置真实扫描命令时，Preflight 返回 `NOT_RUN` 并阻止自动修改，不会伪造 `PASS`。
-
-结果报告默认写入：
-
-```text
-security-autofix-results/
-└── security-autofix-result-YYYY-MM-DD HH-mm-ss.md
-```
-
-报告正文时间使用 `YYYY-MM-DD HH:mm:ss`，文件名强制由 Tool 使用运行机器本地时间生成，调用方不能指定文件名。
-同一秒内并发生成报告时不会覆盖已有文件，后续报告会追加 `-01`、`-02` 等序号。
-
-自动修改使用绑定稳定 `finding_key` 的 Patch Batch。`begin` 快照计划文件和 Git 工作区状态，`seal` 核对实际修改文件并拒绝越界或零修改，最终统一调用 `finalize`。`finalize` 会在删除回滚快照前复核分析结论、Route、全部 Gate 和 Comparison Receipt；只有证据有效的 `FIX_ACCEPTED` 才会接受，其余裁决或无效证据立即回滚。中断后可通过 `list/status` 找回 `OPEN | SEALED` 批次，`OPEN` 也可直接回滚。Accept/Rollback 会生成本地 Receipt，`autofix_result` 必须核验真实 `batch_id + finding_key + status` 及非空修改列表后才写报告。
-
-最终裁决硬规则：只接受规范 verdict/analysis/Gate 枚举；任一必要 Gate 失败或 Rescan 为 `PRESENT` 时必须拒绝；没有失败但存在 `NOT_RUN | UNKNOWN | INDETERMINATE | WARN` 时必须人工审核；只有全部必要 Gate 为 `PASS`、Rescan 为 `ABSENT`、Route 为 `MATCHED`、Comparison Receipt 有效且 Patch Receipt 为 `ACCEPTED` 时才能报告 `FIX_ACCEPTED`。Comparison Receipt 绑定 `finding_key`、两份不同报告及内容哈希，报告被替换后失效。`VERIFY` 模式使用 `patch_batch.status=EXISTING`，并且必须引用补丁前生成的独立历史 `verification_baseline`；当前扫描不能同时充当 baseline 和 rescan。
-
-## 6. Report Adapter 扩展
-
-内置：SARIF、JSON、CSV/TSV、Text/Markdown。
-
-核心 Plugin 导出了注册 API。公司私有 Report Adapter 不需要修改核心 Registry，可以新增独立插件，例如：
-
-```typescript
-// .opencode/plugins/company-security-report.ts
-import { type Plugin } from "@opencode-ai/plugin"
-import {
-  registerReportAdapter,
-  type ReportAdapter,
-} from "../lib/security-autofix/api"
-
-const securityTestReportAdapter: ReportAdapter = {
-  id: "security-test",
-  priority: 200,
-  supports(input) {
-    return input.extension === ".json" && input.text.includes('"securityTest"')
-  },
-  parse(input) {
-    const raw = JSON.parse(input.text)
-    return {
-      report: {
-        path: input.filePath,
-        scanner: "security-test",
-        adapter: "security-test",
-      },
-      findings: (raw.findings ?? []).map((finding) => ({
-        original_id: finding.id,
-        rule: {
-          scanner: "security-test",
-          rule_id: finding.ruleId,
-          source: "scanner",
-        },
-        taxonomies: (finding.cwes ?? []).map((id) => ({
-          name: "CWE",
-          id,
-          source: "scanner",
-        })),
-        raw_type: finding.category,
-        raw_type_source: "scanner",
-        title: finding.title,
-        description: finding.description,
-        severity: finding.severity,
-        location: finding.location,
-        raw: finding,
-      })),
-      warnings: [],
-    }
-  },
-}
-
-export const CompanySecurityReportPlugin: Plugin = async () => {
-  registerReportAdapter(securityTestReportAdapter)
-  return {}
-}
-```
-
-这就是新的扩展模式：**扩展插件注册 Adapter，核心 AutoFix Plugin 不修改。**
-
-## 7. Scanner Adapter 扩展
-
-内置 `command` Scanner Adapter。若公司扫描平台采用“创建任务 -> 轮询 -> 下载报告”，可以通过另一个 OpenCode Plugin 注册：
-
-```typescript
-// .opencode/plugins/company-security-scanner.ts
-import { type Plugin } from "@opencode-ai/plugin"
-import {
-  registerScannerAdapter,
-  type ScannerAdapter,
-} from "../lib/security-autofix/api"
-
-const scanner: ScannerAdapter = {
-  id: "security-test",
-  async scan(config, request, context) {
-    // 创建任务、轮询状态、下载报告。
-    return {
-      status: "EXECUTED",
-      scanner: "security-test",
-      adapter: "security-test",
-      reportPath: "reports/security-test-result.json",
-      reportAdapter: "security-test",
-    }
-  },
-}
-
-export const CompanySecurityScannerPlugin: Plugin = async () => {
-  registerScannerAdapter(scanner)
-  return {}
-}
-```
-
-Targeted Scan 请求使用 `repairEntryId`、`ruleId`、`findingId`。`command` Adapter 对应支持 `{repairEntryId}`、`{ruleId}`、`{findingId}`、`{output}` 占位符。
-
-自动修复必须在修改前保存基线扫描报告，修改后使用 `autofix_compare` 比较。只有修复前基线为 `PRESENT`，并且修复后基于稳定 Fingerprint 得到 `ABSENT`，Rescan Gate 才能通过。SARIF 的 `fingerprints` 与全部具名/版本化 `partialFingerprints` 都会保留，比较时使用双方共有项；弱 Finding ID 或位置在重扫中消失只能得到 `INDETERMINATE`。
-
-然后修改 `.opencode/security-autofix.json`：
-
-```json
-{
-  "scanner": {
-    "adapter": "security-test",
-    "reportAdapter": "security-test"
-  },
-  "results": {
-    "outputDir": "security-autofix-results",
-    "writeJsonSidecar": false
-  }
-}
-```
-
-## 8. Repair Provider 扩展
-
-Repair Catalog 也支持插件注册。新增普通漏洞时：
-
-1. 在对应领域 Skill 增加 strategy 章节。
-2. 通过扩展 Plugin 调用 `registerRepairEntry()` 注册路由。
-
-```typescript
-import { type Plugin } from "@opencode-ai/plugin"
-import { registerRepairEntry } from "../lib/security-autofix/api"
-
-export const CompanyRepairExtension: Plugin = async () => {
-  registerRepairEntry({
-    id: "graphql-injection.generic",
-    display_type: "GRAPHQL_INJECTION",
-    matchers: {
-      scanner_rules: [{ scanner: "company-sast", rule_id: "graphql-injection" }],
-      aliases: ["GRAPHQL_INJECTION", "GRAPHQL_INJECTION_RISK"],
-    },
-    provider: "fix-injection",
-    strategy: "graphql-injection",
-    name_zh: "GraphQL 注入",
-    supported_languages: ["*"],
-    supported_frameworks: ["*"],
-    default_fixability: "AUTO_FIX_WITH_REVIEW",
-    validators: ["security-review", "build", "test", "targeted-rescan", "regression-review"],
-  })
-  return {}
-}
-```
-
-## 9. Build/Test 验证
-
-`autofix_build` 不再内置 Maven、Gradle、Node 或 Python Adapter，也不自动生成构建命令。项目在 `.opencode/security-autofix.json` 中定义命名 Task：
-
-```json
-{
-  "build": {
-    "tasks": {
-      "backend-build": {
-        "kind": "build",
-        "description": "构建后端 Maven 模块",
-        "paths": ["backend/**", "pom.xml"],
-        "command": ["./mvnw", "-pl", "backend", "{args}", "package"],
-        "timeoutMs": 900000,
-        "env": {
-          "CI": "true"
-        }
-      },
-      "backend-test": {
-        "kind": "test",
-        "paths": ["backend/**"],
-        "command": ["./mvnw", "-pl", "backend", "{args}", "test"]
-      },
-      "frontend-build": {
-        "kind": "build",
-        "cwd": "frontend",
-        "paths": ["frontend/**"],
-        "command": ["pnpm", "build", "{args}"]
-      }
-    }
-  }
-}
-```
-
-Task 字段：
-
-- `kind`：必填，`compile | build | test`，用于区分验证 Gate。
-- `command`：必填 argv 数组，第一项是可执行程序。
-- `cwd`：可选项目内目录；省略或空字符串时使用项目根目录。
-- `paths`：可选文件模式，供 Agent 根据修改文件选择 Task；不影响执行目录。
-- `description`：可选说明，只用作选择辅助信息。
-- `env`、`timeoutMs`：可选默认环境变量和超时时间。
-
-命令仍按 argv 数组执行。Windows 上会先按当前 Task 的 `PATH/PATHEXT` 解析可执行入口：
-`mvn.cmd`、`npm.cmd`、`pnpm.cmd`、`yarn.cmd`、`gradlew.bat` 等批处理入口只在启动时通过
-`cmd.exe` 执行并逐项转义参数；`.exe/.com`、macOS 和 Linux 命令继续直接执行，不需要在配置中写平台分支。
-Windows 环境变量覆盖按名称大小写不敏感匹配，同时保留继承环境中的规范键名（例如 `Path`）；超时或取消时，Windows 使用 `taskkill /T /F` 终止整棵进程树，macOS/Linux 则终止独立进程组。
-
-不传 `task` 时只列出任务：
-
-```json
-{}
-```
-
-执行任务并传入 Maven settings：
-
-```json
-{
-  "task": "backend-build",
-  "args": ["-s", "${userHome}/.m2/settings.xml", "-Pcompany"]
-}
-```
-
-`{args}` 必须是独立数组元素，最多出现一次；未传参数时删除，命令中没有 `{args}` 时将运行参数追加到末尾。`${workspaceFolder}`、`${userHome}` 和 `~/` 可用于 `cwd`、`command` 和运行参数。
-
-Task ID 由项目维护者定义，Agent 不得在运行时创造。选择顺序是：用户指定 -> `kind` -> 修改文件匹配 `paths` -> 唯一候选。仍有歧义时返回 `NOT_RUN`并列出候选，不根据描述猜测。
-
-## 10. 开发测试
-
-运行环境需要 Node.js 22 或更高版本：
-
-```bash
-cd .opencode/tests
-npm test
-```
-
-69 个测试覆盖 Build Task、Windows `.cmd/.bat` 命令启动、环境变量合并与跨平台进程树终止、Patch Batch 中断恢复/越界检测/接受前证据复核/回滚/冲突保护及 Receipt 校验、Comparison Receipt、平台相关 Finding 路径身份、SARIF 多版本 Fingerprint 的基线/重扫比较、最终裁决硬校验、36 条 Repair Entry、证据来源与分析置信度门禁、内置报告 Adapter、CSV/TSV 和 Scanner 状态判定。
-
-## 11. 使用
-
-直接修复漏洞：
-
-```text
-/security-fix SQL Injection: src/main/resources/mapper/UserMapper.xml:35 存在 ${orderBy}
-```
-
-处理扫描报告：
-
-```text
-/security-fix-report reports/security-result.sarif
-```
-
-验证已有补丁：
-
-```text
-/security-verify CWE-89 修复，重点检查 UserMapper.xml 和 UserService.java
-```
-
-## 12. 合并到团队工具包
-
-把本工具包 `.opencode/` 下对应目录合并到团队已有 `.opencode/` 即可。生产运行不需要额外复制项目根目录业务文件夹。
-
-如果未来希望独立版本化、跨多个团队仓库复用，可以把 `.opencode/lib/security-autofix/` 和 `.opencode/plugins/security-autofix.ts` 抽取成 `@company/opencode-security-autofix` npm Plugin；当前 Agent/Skill/Command 无需因此重写。
+报告包含全部 Finding、根因、策略、修改文件、验证命令和证据、未执行项、剩余风险、人工检查项及工作区处置状态。

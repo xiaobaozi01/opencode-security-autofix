@@ -1,7 +1,6 @@
 ---
 name: fix-request-security
-description: "修复 SSRF、路径遍历、Zip Slip 与不安全文件上传等请求/资源访问边界问题。"
-compatibility: opencode
+description: "当 FixPlan 处理 SSRF、路径遍历、Zip Slip 或不安全文件上传时使用。"
 metadata:
   toolkit: security-autofix
   purpose: defensive-repair
@@ -10,7 +9,7 @@ metadata:
 
 ## 使用方式
 
-Repair Catalog 会传入 `strategy`。只执行与该 `strategy` 对应的章节；不要因为加载了本领域 Skill 就顺便修复其他漏洞。
+FixPlan 会指定 `strategy`。只执行与该 `strategy` 对应的章节；如果代码事实与策略不匹配，停止修改并返回 `PLAN_INVALIDATED`。不要因为加载了本领域 Skill 就顺便修复其他漏洞。
 
 ## 通用原则
 
