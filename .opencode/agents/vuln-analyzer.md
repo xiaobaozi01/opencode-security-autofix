@@ -20,7 +20,7 @@ permission:
 
 检查输入是否真实可控、现有校验是否有效、数据是否到达危险 Sink、扫描器调用链是否准确。证据不足必须使用 `NEED_CONTEXT`，不能为了进入 Patch 生成流程提高结论或置信度。
 
-分析必须基于输入指定的 `task_start_head` 对应代码。不得使用其他 Finding Worktree 中的代码或补丁，也不得假设任何 Patch 已经应用到主工作区。
+输入必须包含主 Agent 分配的 `finding_key` 以及该 key 自己的 baseline 条目。key、原始身份或 `task_start_head` 不一致时使用 `NEED_CONTEXT` 并说明不一致，不得分析其他目标。分析必须基于输入指定的 `task_start_head` 对应代码。不得使用其他 Finding 的 baseline、Worktree 代码或补丁，也不得假设任何 Patch 已经应用到主工作区。
 
 ## 分析范围
 
@@ -38,6 +38,7 @@ permission:
 严格返回 JSON，至少包含：
 
 - `analysis_verdict`
+- `finding_key`
 - `analysis_confidence: HIGH | MEDIUM | LOW | UNKNOWN`
 - `task_start_head`
 - `root_cause`, `source`, `sink`, `propagation`

@@ -50,4 +50,8 @@ permission:
 - `diff_summary`
 - `security_invariant`
 - `tests_added_or_updated`
+- `stop_reason`：`PLAN_INVALIDATED | NO_CHANGE` 时必须具体说明；成功时为 `null`
+- `required_plan_changes`：仅 `PLAN_INVALIDATED` 时列出，不得自行执行
 - `assumptions`, `warnings`
+
+`PLAN_INVALIDATED` 和 `NO_CHANGE` 不得伪装成已准备 Patch，不得调用 validator，也不得声称已生成 Artifact。
