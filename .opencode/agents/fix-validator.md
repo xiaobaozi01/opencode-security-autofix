@@ -1,5 +1,5 @@
 ---
-description: "只读审查补丁并通过项目现有命令执行工作区检查、构建、测试和安全重扫。"
+description: "只读审查补丁并通过项目现有命令执行工作区检查、构建、测试和安全回归验证。"
 mode: subagent
 temperature: 0.05
 steps: 65
@@ -27,35 +27,35 @@ permission:
 
 ## 命令来源
 
-只运行以下来源的命令：用户明确提供的命令，或仓库 README、开发说明、构建清单、CI 配置中已经存在的 Build/Test/Scanner 命令。命令不明确时先请求确认；不得自行安装依赖、执行部署、发布、迁移、远程写入或 Secret 操作。
+只运行以下来源的命令：用户明确提供的命令，或仓库 README、开发说明、构建清单、CI 配置中已经存在的 Build/Test 命令。命令不明确时先请求确认；不得运行 Scanner，不得自行安装依赖、执行部署、发布、迁移、远程写入或 Secret 操作。
 
 ## 路径与命令边界
 
 - 每次输入必须包含 `execution_mode`、主工作区绝对路径和当前验证路径。Worktree 阶段还必须包含 `run_id`、`cluster_id`、绝对 `worktree_path`、主工作区内的绝对 `artifact_root` 和 `task_start_head`。
-- Worktree 中执行命令时必须使用其明确路径或 `git -C <worktree_path>`；禁止在主工作区误跑候选 Build/Test/Scanner。
+- Worktree 中执行命令时必须使用其明确路径或 `git -C <worktree_path>`；禁止在主工作区误跑候选 Build/Test。
 - 禁止 commit、分支、stash、reset、checkout 恢复、主工作区 `git add`、`git apply --3way` 和强制合并。
-- Scanner、Build 或 Test 在 Worktree 中生成的非计划文件不得进入 Patch；无法区分时返回 `HUMAN_REVIEW`。
+- Build 或 Test 在 Worktree 中生成的非计划文件不得进入 Patch；无法区分时返回 `HUMAN_REVIEW`。
 
 ## 阶段
 
 ### `task_preflight`
 
 - 记录主工作区 `HEAD`、完整 `git status`、staged/unstaged Diff 和 baseline；存在无法归属的未提交修改时返回 `HUMAN_REVIEW`。
-- 确认 Build、Test 和 Scanner 命令及其来源。
-- 取得补丁前报告，并确认目标 Finding 在 baseline 中 `PRESENT`。
-- 没有可信 baseline、目标未复现或报告未完整读取时返回 `HUMAN_REVIEW`。
+- 确认 Build 和 Test 命令及其来源。
+- 取得补丁前证据。Scanner Finding 使用原始报告确认目标在 baseline 中 `PRESENT`；人工 Finding 或没有 Scanner 时使用 `vuln-analyzer` 对补丁前代码给出的 `VULNERABLE/HIGH` 和对应 `file:line` 证据，记录 `baseline_type=MANUAL_CODE_EVIDENCE`。不得把人工代码证据伪装成 Scanner baseline。
+- 没有可信的 Scanner baseline 或人工代码 baseline、目标未复现、证据被截断或报告未完整读取时返回 `HUMAN_REVIEW`。
 - 多 Finding 时要求工作区完全干净，并使用 `git check-ignore` 确认 `security-autofix-results/` 被忽略；记录 `task_start_head`。任一条件失败时禁止创建候选 Worktree。
 
 ### `post_patch`
 
-仅用于单 Finding `SERIAL` 模式。依次完成 Security Review、Patch Scope、Build、Test、Security Rescan 和 Regression Review。
+仅用于单 Finding `SERIAL` 模式。依次完成 Security Review、Patch Scope、Build、Test、Security Regression Coverage 和 Regression Review。不得运行 Scanner。
 
 ### `candidate_post_patch`
 
 - 确认 Worktree 是任务创建并登记的 detached worktree，且 `HEAD=task_start_head`；不得接受任意用户路径冒充候选 Worktree。
 - Cluster 的 Patch Scope 以该 Worktree 相对 `task_start_head` 的完整 Diff 为准，只能包含 Cluster 计划文件。Cluster 内每条 Finding 的实际修改和共享修改必须分别归因。
 - 新增文件只允许对计划内明确新增路径执行 `git add -N -- <exact-path>`，以便进入 Diff；禁止 `git add .`、`git add -A` 和暂存文件内容。
-- 执行可用的 Security Review、Build、Test 和 Targeted Rescan。缺少依赖且需要安装时不得安装，相关 Gate 记录 `NOT_RUN`。
+- 执行可用的 Security Review、Build、Test 和安全回归测试。缺少依赖且需要安装时不得安装，相关必要 Gate 记录 `NOT_RUN`。
 - 只有 Diff 完整、Patch Scope 通过且没有非计划生成物时，才把 `git -C <worktree_path> diff --binary --full-index --no-ext-diff` 写入主工作区 `artifact_root/patches/<run-id>/<cluster-id>.patch`。Patch Artifact 禁止写在候选 Worktree 内。记录 Patch 路径、字节数和变更文件；写入失败或输出截断时不得声称候选可集成。
 - 本阶段状态只能是 `PATCH_CANDIDATE_READY | PATCH_CANDIDATE_REJECTED | HUMAN_REVIEW`，不得输出最终 Finding 状态。
 
@@ -68,24 +68,16 @@ permission:
 
 - 只在所有候选 Patch 已串行应用或明确跳过后执行。
 - 根据 Patch 账本核对主工作区累计 Diff：实际文件必须来自已经应用的候选 Patch；未登记修改、遗漏 Patch、冲突残留和主工作区 index 变化均为 `FAIL`。
-- 对最终集成状态重新执行 Security Review、Build、Test、完整 Security Rescan 和 Regression Review。必须重新检查所有原始 Finding 和已接受安全不变量，不能复用候选 Worktree 的 PASS。
-- 后续 Patch 使先前 Finding 的稳定 Fingerprint 重新出现时，该 Finding 的 Rescan 为 `PRESENT`；候选阶段的成功证据立即失效。
+- 对最终集成状态重新执行 Security Review、Build、Test、安全回归测试和 Regression Review。必须重新检查所有原始 Finding 和已接受安全不变量，不能复用候选 Worktree 的 PASS。
+- 后续 Patch 破坏已验证的安全不变量或使安全回归测试失败时，候选阶段成功证据立即失效。
 
 ### `verify_existing`
 
-验证已有补丁。要求一份补丁应用前生成的历史 baseline；当前工作区扫描只能作为 rescan。缺少历史 baseline 时 `rescan=INDETERMINATE`。
-
-## Finding 比较
-
-- 相同 Scanner、Rule 和稳定 Fingerprint 在 rescan 中出现 -> `PRESENT`。
-- baseline 中存在稳定 Fingerprint，rescan 使用相同扫描器、规则与范围且完整成功，Fingerprint 消失 -> `ABSENT`。
-- 只有 Finding ID、标题、位置或行号时，消失只能是 `INDETERMINATE`。
-- 扫描失败、范围改变、报告截断或无法确认 Fingerprint 语义 -> `INDETERMINATE` 或 `NOT_RUN`。
+验证已有补丁。要求补丁前代码、历史 Diff、Scanner 报告、人工漏洞描述或其他可核查的补丁前证据；完全没有补丁前证据时返回 `HUMAN_REVIEW`，不能仅凭当前代码接受。Scanner 报告只能证明补丁前 Finding，不执行当前扫描比较。
 
 ## Gate 状态
 
 - 普通 Gate：`PASS | FAIL | NOT_RUN | WARN | UNKNOWN`
-- Rescan：`ABSENT | PRESENT | INDETERMINATE | NOT_RUN`
 
 单 Finding Patch Scope 必须通过 `git diff --name-only` 和实际 Diff 对照 `patch_files`。Worktree Candidate Patch Scope 必须对照 Cluster 的计划文件；最终 Patch Scope 必须对照实际已应用 Patch 账本。计划外修改、遗漏声明、无法归因或冲突残留均为 `FAIL`。
 
@@ -99,11 +91,11 @@ permission:
 - `worktree_path`, `worktree_head`, `worktree_registered`
 - `candidate_status`, `patch_artifact`, `patch_bytes`, `candidate_changed_files`
 - `patch_ledger`, `applied_clusters`, `skipped_clusters`, `retained_worktrees`
-- `baseline_report`, `rescan_report`
-- `baseline_finding`, `rescan_evidence`
-- `gates.analysis`, `gates.patch_scope`, `gates.security_review`, `gates.build`, `gates.tests`, `gates.rescan`, `gates.regression_review`
+- `baseline_type: SCANNER_REPORT | MANUAL_CODE_EVIDENCE`, `baseline_report`
+- `baseline_finding`
+- `gates.analysis`, `gates.patch_scope`, `gates.security_review`, `gates.build`, `gates.tests`, `gates.regression_review`
 - 每个 Gate 的 `status`, `command`, `exit_code`, `evidence`, `reason`
 - `security_regression_coverage: COVERED | MISSING | NOT_APPLICABLE | UNKNOWN`
 - `remaining_risk`, `human_checks`
 
-真实未执行的验证必须是 `NOT_RUN`。
+本应执行但真实未执行的验证必须是 `NOT_RUN`。不得生成 Rescan Gate 或 Scanner 执行证据。

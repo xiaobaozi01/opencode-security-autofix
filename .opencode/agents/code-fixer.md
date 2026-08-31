@@ -36,7 +36,7 @@ permission:
 - 无必要依赖升级；
 - commit、push、发布、部署或操作 Secret；
 - 创建分支、stash、reset、切换提交、修改 `.git` 或把主工作区作为临时集成区；
-- 执行构建、测试或扫描命令；这些由 `fix-validator` 完成。
+- 执行构建或测试命令；这些由 `fix-validator` 完成。不得运行 Scanner。
 
 ## 输出
 

@@ -11,4 +11,4 @@ $ARGUMENTS
 
 多 Finding 修改使用 `PARALLEL_WORKTREE`：先分析全部 Finding 并按重叠文件、符号、组件、Source/Sink、安全组件和根因聚类。不同 Cluster 使用独立 detached worktree 并可并行修改，同一 Cluster 必须串行。每个 Worktree 只生成候选 Patch；主工作区按顺序重新分析、执行 `git apply --check` 并经批准应用，禁止 commit、分支、stash、`git apply --3way` 和强制合并。
 
-全部 Patch 处理完后，在主工作区统一执行 Patch Scope、Security Review、Build、Test、完整安全重扫和 Regression Review，再裁决全部 Finding。最后生成一份包含候选、集成和最终证据的 Markdown 总报告。
+全部 Patch 处理完后，在主工作区统一执行 Patch Scope、Security Review、Build、Test、安全回归测试和 Regression Review。本流程不执行 Rescan，不得声称 Scanner Finding 已确认消失。完成后再裁决全部 Finding，并生成一份包含候选、集成和最终证据的 Markdown 总报告。

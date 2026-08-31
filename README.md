@@ -78,7 +78,7 @@ final-judge → result-reporter
 
 ## 命令发现
 
-Build、Test 和 Scanner 命令只能来自：
+Build 和 Test 命令只能来自：
 
 1. 用户明确提供；
 2. 仓库 README、开发说明或 Agent 指令；
@@ -102,16 +102,13 @@ Build、Test 和 Scanner 命令只能来自：
 
 否则返回 `HUMAN_REVIEW`、`GUIDANCE_ONLY`、`NOT_SUPPORTED` 或 `FALSE_POSITIVE`。
 
-## Finding 比较
+## 补丁前证据与安全回归
 
-安全重扫遵循保守原则：
+本工具包不执行 Rescan。Scanner 报告仅作为输入和补丁前 baseline，最终报告不会声称 Scanner 已确认 Finding 消失。
 
-- 相同 Scanner、Rule 和稳定 Fingerprint 再次出现：`PRESENT`；
-- 相同扫描范围内稳定 Fingerprint 消失：`ABSENT`；
-- 只有 Finding ID、标题、位置或行号时，消失：`INDETERMINATE`；
-- 扫描失败、范围变化或报告不完整：`INDETERMINATE` 或 `NOT_RUN`。
+没有 Scanner 时，补丁前 baseline 可以是 `vuln-analyzer` 对当前代码给出的 `VULNERABLE/HIGH` 和具体 `file:line` 证据，类型记录为 `MANUAL_CODE_EVIDENCE`。它只能证明修改前代码存在漏洞，不能伪装成 Scanner 报告。验证已有补丁时仍需历史代码、Diff、人工漏洞描述或其他补丁前证据；完全缺少补丁前证据时转为 `HUMAN_REVIEW`。
 
-`NOT_RUN` 和 `INDETERMINATE` 都不能视为通过。
+修复后的安全结论来自代码安全审查、构建、测试和直接覆盖原危险路径的安全回归测试。`security_regression_coverage` 必须为 `COVERED` 才可能接受补丁；只看到告警位置变化、代码模式变化或普通测试通过都不够。
 
 ## 最终裁决
 
@@ -122,10 +119,10 @@ Build、Test 和 Scanner 命令只能来自：
 - Security Review
 - Build
 - Tests
-- Rescan
+- Security Regression Coverage
 - Regression Review
 
-任一 Gate 失败或 Rescan 为 `PRESENT` 时结论为 `FIX_REJECTED`；没有失败但存在未执行、不确定或警告时结论为 `HUMAN_REVIEW`；只有 `fixability=AUTO_FIX`、普通 Gate 全部 `PASS` 且 Rescan 为 `ABSENT` 时才允许 `FIX_ACCEPTED`。`AUTO_FIX_WITH_REVIEW` 即使自动验证全部通过也仍为 `HUMAN_REVIEW`。
+任一必要 Gate 失败时结论为 `FIX_REJECTED`；没有失败但存在未执行、不确定或警告时结论为 `HUMAN_REVIEW`。只有必要 Gate 全部 `PASS`、安全回归覆盖为 `COVERED` 且 `fixability=AUTO_FIX` 时才允许 `FIX_ACCEPTED`；`AUTO_FIX_WITH_REVIEW` 即使自动验证全部通过也仍为 `HUMAN_REVIEW`。
 
 ## 工作区安全
 
@@ -140,7 +137,7 @@ Build、Test 和 Scanner 命令只能来自：
 3. Worktree 中不 commit、不创建分支、不 stash；验证器将完整 Diff 导出到 `security-autofix-results/patches/<run-id>/<cluster-id>.patch`。
 4. 主工作区重新分析每个候选影响。已被先前 Patch 解决的 Finding 记录 `RESOLVED_BY_PRIOR_PATCH` 和 `patch_owner`，不重复应用。
 5. 其余 Patch 必须先通过 `git apply --check`，再经用户批准串行执行 `git apply`；禁止 `--3way`、强制应用和自动解决冲突。
-6. 全部候选处理后在主工作区执行一次 `final_batch`，重新完成累计 Patch Scope、Build、Test、完整 Rescan 和 Regression Review，然后才进行最终裁决。
+6. 全部候选处理后在主工作区执行一次 `final_batch`，重新完成累计 Patch Scope、Security Review、Build、Test、安全回归测试和 Regression Review，然后才进行最终裁决。
 
 多 Finding Worktree 模式要求任务开始时工作区完全干净、结果目录已被 Git 忽略且用户能够逐次审批状态变更命令。不满足时返回 `HUMAN_REVIEW`。不得为此模式主动启用 OpenCode `--auto`；它会自动批准原本需要确认的 Worktree、Patch 写入和集成命令。候选 Worktree 可能缺少未跟踪依赖；工具包不会为此自动安装依赖，相关候选 Gate 使用 `NOT_RUN`，最终以主工作区验证为准。
 

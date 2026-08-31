@@ -47,7 +47,7 @@ Bind Parameter 通常不能表示 SQL Identifier。**禁止**机械把 `${orderB
 - 修复后丢失原有合法排序/过滤能力
 
 ## 验证
-至少覆盖正常值和代表性的 SQL 元字符输入，并对原 Source -> Sink 执行 Targeted Rescan。
+至少覆盖正常值和代表性的 SQL 元字符输入，并用安全回归测试直接验证原 Source -> Sink 不再允许不可信数据改变 SQL 结构。
 
 ## Strategy: `nosql-injection` — NoSQL Injection
 
