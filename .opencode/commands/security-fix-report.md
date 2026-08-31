@@ -13,4 +13,4 @@ $ARGUMENTS
 
 不得把任何 Patch 应用到主工作区。每个 Patch 只对应一个 Finding；根据计划和实际 Patch 标记相互重叠的文件、Hunk、符号、组件和安全不变量，组合兼容性一律视为未验证。
 
-本流程不执行 Rescan，不得声称 Scanner Finding 已确认消失。最后生成一份 Patch 索引、独立验证证据和组合风险 Markdown 总报告。
+最后先生成一份 Patch 索引、独立验证证据、组合风险和 Worktree 清理资格 Markdown 总报告；报告成功写入后，只对满足全部条件的 `PATCH_READY` Worktree 逐个请求用户批准精确删除。

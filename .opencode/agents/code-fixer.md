@@ -36,7 +36,7 @@ permission:
 - 无必要依赖升级；
 - 修改主工作区或其他 Worktree；
 - commit、push、发布、部署、创建分支、stash、reset、切换提交、修改 `.git` 或操作 Secret；
-- 执行 Build、Test 或 Scanner；这些由 `fix-validator` 在当前 Worktree 中完成。
+- 执行 Build 或 Test；这些由 `fix-validator` 在当前 Worktree 中完成。
 
 ## 输出
 

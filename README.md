@@ -129,7 +129,7 @@ Build 和 Test 命令只能来自：
 
 ## 补丁前证据与安全回归
 
-本工具包不执行 Rescan。Scanner 报告仅作为输入和补丁前 baseline，最终报告不会声称 Scanner 已确认 Finding 消失。
+Scanner 报告仅作为输入和补丁前 baseline。
 
 没有 Scanner 时，补丁前 baseline 可以是 `vuln-analyzer` 对 `task_start_head` 代码给出的 `VULNERABLE/HIGH` 和具体 `file:line` 证据，类型记录为 `MANUAL_CODE_EVIDENCE`。它只能证明修改前代码存在漏洞，不能伪装成 Scanner 报告。
 
@@ -153,7 +153,6 @@ Build 和 Test 命令只能来自：
 `PATCH_READY` 只表示该 Patch 在自己的 Worktree 中相对于记录的 `task_start_head` 独立验证通过。它不表示：
 
 - Patch 已应用到目标项目；
-- Scanner 已确认告警消失；
 - 多个 Patch 可以无冲突地组合；
 - 组合后的项目仍能构建或通过测试。
 
@@ -177,7 +176,16 @@ security-autofix-results/worktrees/<run-id>/<finding-key>
 
 Worktree 中不 commit、不创建分支、不 stash、不 reset。验证器只允许对计划内新增文件执行精确的 `git add -N`，以便新增文件进入导出的 Diff；不会暂存文件内容。
 
-默认保留带候选修改的 Worktree，便于复核 Patch 和验证证据。只有用户明确批准后才执行精确的 Worktree 删除和 prune。无论 Worktree 是否保留，主工作区都不会应用候选修改。
+Worktree 的清理采用半自动策略：
+
+- 先成功写入 Patch Artifact 和最终报告；
+- 只有 `PATCH_READY`、Patch 非空且已记录 SHA-256、`main_workspace_unchanged=true` 的 Worktree 才具有 `ELIGIBLE_AFTER_REPORT` 资格；
+- 报告写入后，对每个符合资格的绝对 Worktree 路径单独请求用户批准 `git worktree remove --force <path>`；
+- 用户拒绝或删除失败时保留 Worktree，不自动重试；
+- `PATCH_REJECTED`、`HUMAN_REVIEW`、Artifact 或报告失败的 Worktree 默认保留，便于复核；
+- 不执行宽泛的 `git worktree prune`，也不删除 Patch Artifact 和报告。
+
+无论 Worktree 是否删除，主工作区都不会应用候选修改。
 
 ## 修复报告
 

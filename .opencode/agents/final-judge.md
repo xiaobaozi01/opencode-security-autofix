@@ -19,7 +19,6 @@ permission:
 - 没有失败，但任一必要 Gate 为 `NOT_RUN | UNKNOWN | WARN`，或安全回归覆盖不是 `COVERED` -> `HUMAN_REVIEW`。
 - `fixability=AUTO_FIX_WITH_REVIEW` 时，即使全部自动 Gate 通过，也必须返回 `HUMAN_REVIEW` 和 `artifact_disposition=PENDING_REVIEW`，并原样保留 `review_reason` 与 `required_human_checks`。
 - 只有 `fixability=AUTO_FIX`、策略为 `SELECTED`、`validation_status=PATCH_VALIDATED`、`main_workspace_unchanged=true`、Artifact 完整且 Analysis、Patch Scope、Security Review、Build、Tests、Regression Review 全部 `PASS`、`security_regression_coverage=COVERED`，才允许 `PATCH_READY`。
-- 本 Agent 不接收 Rescan Gate，不得声称 Scanner 已确认漏洞消失。
 - `overlaps_with` 不改变当前 Patch 的独立裁决，但只要存在重叠，就必须输出 `combination_status=NOT_VALIDATED` 和 `combination_risk=HUMAN_REVIEW_REQUIRED`。不得暗示多个 Patch 可以安全叠加。
 - `NOT_VULNERABLE` 不进入本 Agent，由主流程记录为 `FALSE_POSITIVE`。
 

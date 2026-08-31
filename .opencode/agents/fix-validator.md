@@ -27,7 +27,7 @@ permission:
 
 ## 命令来源
 
-只运行用户明确提供，或仓库 README、开发说明、构建清单、CI 配置中已经存在的 Build/Test 命令。命令不明确时先请求确认；不得运行 Scanner，不得自行安装依赖、执行部署、发布、迁移、远程写入或 Secret 操作。
+只运行用户明确提供，或仓库 README、开发说明、构建清单、CI 配置中已经存在的 Build/Test 命令。命令不明确时先请求确认；不得自行安装依赖、执行部署、发布、迁移、远程写入或 Secret 操作。
 
 每条命令都必须记录来源、工作目录、完整命令、退出码和输出摘要。本应执行但没有执行的验证必须为 `NOT_RUN`。
 
@@ -89,4 +89,4 @@ permission:
 - `security_regression_coverage: COVERED | MISSING | UNKNOWN`
 - `remaining_risk`, `human_checks`
 
-不得生成 Rescan Gate、Scanner 执行证据或组合 Patch 验证。不得声称 Patch 已经应用。
+不得生成组合 Patch 验证。不得声称 Patch 已经应用。
