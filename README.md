@@ -111,6 +111,18 @@ Build 和 Test 命令只能来自：
 
 缺少依赖、环境变量、服务、数据库或 Secret 时，不自动安装或补造环境；相关 Gate 使用 `NOT_RUN`。工具包不会执行发布、部署、数据库迁移、远程写入或 Secret 操作。
 
+## 无人值守权限
+
+Front matter 使用显式允许和拒绝规则，不触发权限确认：
+
+- 主 Agent 可以自动创建隔离 Worktree，但不能删除 Worktree、应用 Patch、commit、push、reset 或 stash；
+- `fix-validator` 可以在指定 Worktree 中自动执行来源明确的 Build/Test 命令和导出 Patch；
+- 命令不明确、缺少依赖或环境不完整时直接记录 `NOT_RUN` 并转为 `HUMAN_REVIEW`，不会暂停询问；
+- 安装、部署、发布、迁移、远程写入和 Secret 操作始终禁止；
+- 不需要也不应启用 OpenCode `--auto` 扩大其他权限。
+
+Build/Test 会执行目标仓库中的代码或脚本。无人值守运行只适用于可信仓库或已经隔离的执行环境。
+
 ## Patch 生成条件
 
 只有同时满足以下条件才允许在隔离 Worktree 中生成 Patch：
@@ -176,16 +188,7 @@ security-autofix-results/worktrees/<run-id>/<finding-key>
 
 Worktree 中不 commit、不创建分支、不 stash、不 reset。验证器只允许对计划内新增文件执行精确的 `git add -N`，以便新增文件进入导出的 Diff；不会暂存文件内容。
 
-Worktree 的清理采用半自动策略：
-
-- 先成功写入 Patch Artifact 和最终报告；
-- 只有 `PATCH_READY`、Patch 非空且已记录 SHA-256、`main_workspace_unchanged=true` 的 Worktree 才具有 `ELIGIBLE_AFTER_REPORT` 资格；
-- 报告写入后，对每个符合资格的绝对 Worktree 路径单独请求用户批准 `git worktree remove --force <path>`；
-- 用户拒绝或删除失败时保留 Worktree，不自动重试；
-- `PATCH_REJECTED`、`HUMAN_REVIEW`、Artifact 或报告失败的 Worktree 默认保留，便于复核；
-- 不执行宽泛的 `git worktree prune`，也不删除 Patch Artifact 和报告。
-
-无论 Worktree 是否删除，主工作区都不会应用候选修改。
+工具包不执行 Worktree 删除或 prune。所有 Worktree、Patch Artifact 和报告默认保留，便于复核，也避免无人值守运行中的强制删除风险。用户可以在工具包结束后自行清理；主工作区不会应用候选修改。
 
 ## 修复报告
 

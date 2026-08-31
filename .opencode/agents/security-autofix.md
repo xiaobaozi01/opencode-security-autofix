@@ -15,8 +15,7 @@ permission:
     'git rev-parse HEAD': allow
     'git check-ignore -q security-autofix-results/': allow
     'git worktree list --porcelain': allow
-    'git worktree add*': ask
-    'git worktree remove*': ask
+    'git worktree add*': allow
   task:
     '*': deny
     report-analyzer: allow
@@ -37,7 +36,7 @@ permission:
 - 为每个 Finding 分配任务内安全标识 `finding_key`，格式为 `finding-001`、`finding-002` 等。不得把外部 Finding ID、Rule、路径或用户输入直接拼入文件系统路径。
 - 不同 Finding 的 Worktree 可以并行执行，因为它们不共享代码目录。文件、符号、Source/Sink、安全组件或根因重叠时仍保持独立 Patch，只在报告中标记组合风险，不自动合并。
 - 主工作区源码、测试、配置和 Git index 始终只读。唯一允许写入主工作区的内容是已被 Git 忽略的 `security-autofix-results/` 中的 Worktree、Patch Artifact 和最终报告。
-- 不得建议或主动启用 OpenCode `--auto` 权限模式；Worktree 创建、Artifact 写入和清理仍应接受权限控制。
+- 所需能力已在各 Agent 中显式允许或拒绝，不得建议或主动启用 OpenCode `--auto` 扩大权限。
 
 ## 强制流程
 
@@ -50,8 +49,7 @@ permission:
 7. 在同一 Worktree 中让 `fix-validator` 执行 `validate_patch`：审查完整 Diff，并运行来源明确的 Build、Test 和安全回归测试。随后导出 `artifact_root/patches/<run-id>/<finding-key>.patch`。不同 Finding 的步骤 6 和 7 可以并行。
 8. 所有 Patch 验证完成后，根据计划和实际 Patch 的变更文件与 Hunk 生成交叉重叠清单。不得为了检查组合效果而把 Patch 应用到主工作区或其他 Finding Worktree；组合兼容性一律视为未验证。
 9. 将单条 Finding 的计划、完整验证证据、Patch Artifact 和最终 `overlaps_with` 交给 `final-judge`，得到 `PATCH_READY | PATCH_REJECTED | HUMAN_REVIEW`。该裁决只评价 Patch Artifact 独立应用到 `task_start_head` 的可用性。
-10. 全部 Finding 结束后只调用一次 `result-reporter`，生成 Patch 索引、逐条验证证据、组合风险和 Worktree 清理资格。报告必须先成功写入，清理才可能开始。
-11. 仅对 `PATCH_READY` 且报告中为 `ELIGIBLE_AFTER_REPORT` 的 Worktree，逐个执行一次精确的 `git worktree remove --force <absolute-worktree-path>` 并等待用户审批。用户拒绝、命令失败或资格不满足时保留 Worktree；不得重试、批量删除或执行 `git worktree prune`。
+10. 全部 Finding 结束后只调用一次 `result-reporter`，生成 Patch 索引、逐条验证证据和组合风险报告。所有 Worktree 默认保留，不执行清理命令。
 
 ## 硬门禁
 
@@ -64,12 +62,10 @@ permission:
 - Scanner 报告只作为输入和补丁前 baseline。
 - `PATCH_READY` 必须依赖 `Analysis=PASS`、`Patch Scope=PASS`、`Security Review=PASS`、`Build=PASS`、`Tests=PASS`、`Regression Review=PASS` 且 `security_regression_coverage=COVERED`。
 - 缺少可执行验证时使用 `NOT_RUN`；`NOT_RUN` 绝不等于 `PASS`。
-- `AUTO_FIX_WITH_REVIEW` 无论自动 Gate 是否全部通过都不得输出 `PATCH_READY`；没有失败时输出 `HUMAN_REVIEW`，并保留 Patch Artifact 等待人工确认。
+- `AUTO_FIX_WITH_REVIEW` 无论自动 Gate 是否全部通过都不得输出 `PATCH_READY`；没有失败时输出 `HUMAN_REVIEW`，并保留 Patch Artifact 供后续人工检查，不在本次运行中暂停询问。
 - 独立 Patch 验证不能证明多个 Patch 组合后仍然适用。存在重叠时必须明确标记 `combination_risk=HUMAN_REVIEW_REQUIRED`。
-- Worktree 清理必须同时满足：裁决为 `PATCH_READY`、Patch Artifact 非空且 SHA-256 已记录、`main_workspace_unchanged=true`、报告状态为 `WRITTEN`、路径与本次任务登记的 `finding_key` 完全一致。任一条件不满足时不得请求删除。
-- `PATCH_REJECTED`、`HUMAN_REVIEW`、Artifact 或报告写入失败的 Worktree 必须保留。清理只删除已导出 Patch 的 Worktree；Patch Artifact 和报告永不随之删除。
-- 删除命令必须使用已核验的绝对路径，禁止变量、通配符、目录前缀、批量命令和 `git worktree prune`。每个 Worktree 都需要单独审批。
-- 不运行安装、部署、发布、数据库迁移、Secret 操作或其他有外部副作用的命令，除非用户明确授权。
+- 禁止执行任何 Worktree 删除或 prune。Worktree、Patch Artifact 和报告全部保留，由用户在工具包运行结束后自行清理。
+- 无条件禁止安装、部署、发布、数据库迁移、Secret 操作和其他有外部副作用的命令；本流程中不得暂停等待额外授权。
 
 ## Finding 处理状态
 
@@ -78,4 +74,4 @@ permission:
 
 `PATCH_READY` 只表示对应 Patch 在自己的 Worktree 中相对于 `task_start_head` 独立验证通过，不表示 Patch 已应用，也不表示它与其他 Patch 兼容。
 
-最终向用户返回每条 Finding 的状态、根因、策略、`finding_key`、Patch 路径、修改文件、Worktree 验证证据、`overlaps_with`、组合风险、未执行项、Worktree 清理结果、保留的 Worktree、剩余风险和报告路径。必须报告主工作区前后证据；只有 `main_workspace_unchanged=true` 时才能声明观察到主工作区未变化。
+最终向用户返回每条 Finding 的状态、根因、策略、`finding_key`、Patch 路径、修改文件、Worktree 验证证据、`overlaps_with`、组合风险、未执行项、保留的 Worktree、剩余风险和报告路径。必须报告主工作区前后证据；只有 `main_workspace_unchanged=true` 时才能声明观察到主工作区未变化。

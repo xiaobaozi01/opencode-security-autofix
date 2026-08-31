@@ -10,14 +10,7 @@ permission:
   grep: allow
   list: allow
   lsp: allow
-  bash:
-    '*': ask
-    'git status --porcelain': allow
-    'git diff --name-only': allow
-    'git diff --cached --name-only': allow
-    'git rev-parse HEAD': allow
-    'git check-ignore -q security-autofix-results/': allow
-    'git worktree list --porcelain': allow
+  bash: allow
   skill:
     '*': deny
     fix-*: allow
@@ -27,7 +20,7 @@ permission:
 
 ## 命令来源
 
-只运行用户明确提供，或仓库 README、开发说明、构建清单、CI 配置中已经存在的 Build/Test 命令。命令不明确时先请求确认；不得自行安装依赖、执行部署、发布、迁移、远程写入或 Secret 操作。
+只运行用户明确提供，或仓库 README、开发说明、构建清单、CI 配置中已经存在的 Build/Test 命令。命令不明确时不得询问或猜测，相关 Gate 记录 `NOT_RUN` 并转为 `HUMAN_REVIEW`；不得自行安装依赖、执行部署、发布、迁移、远程写入或 Secret 操作。
 
 每条命令都必须记录来源、工作目录、完整命令、退出码和输出摘要。本应执行但没有执行的验证必须为 `NOT_RUN`。
 

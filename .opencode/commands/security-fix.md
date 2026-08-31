@@ -13,4 +13,4 @@ $ARGUMENTS
 
 Scanner 报告仅作为输入和补丁前证据。`PATCH_READY` 只表示该 Patch 在自己的 Worktree 中相对于起始提交独立验证通过，不表示已经应用或与其他 Patch 兼容。
 
-流程结束后先生成一份 Markdown 总报告并返回所有 Patch 路径。报告写入成功后，只对满足全部条件的 `PATCH_READY` Worktree 逐个请求用户批准精确删除；其他 Worktree 保留。不得执行 commit、push、发布、部署、迁移或 Secret 操作。
+流程结束后生成一份 Markdown 总报告并返回所有 Patch 和保留的 Worktree 路径。不得清理 Worktree，也不得执行 commit、push、发布、部署、迁移或 Secret 操作。
