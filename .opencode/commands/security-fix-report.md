@@ -3,7 +3,7 @@ description: "读取安全扫描报告，并为每个适合修复的 Finding 生
 agent: security-autofix
 ---
 
-以 `AUTOFIX` 模式处理以下安全扫描报告：
+处理以下安全扫描报告：
 
 $ARGUMENTS
 

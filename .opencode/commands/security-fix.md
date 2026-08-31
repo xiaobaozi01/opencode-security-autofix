@@ -3,7 +3,7 @@ description: "分析安全问题，并为每个 Finding 生成一个独立验证
 agent: security-autofix
 ---
 
-以 `AUTOFIX` 模式处理以下安全问题：
+处理以下安全问题：
 
 $ARGUMENTS
 

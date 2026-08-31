@@ -19,8 +19,7 @@ Security AutoFix 是一个由 Agent、Subagent 和领域 Skill 组成的防御�
 │   └── result-reporter.md
 ├── commands/
 │   ├── security-fix.md
-│   ├── security-fix-report.md
-│   └── security-verify.md
+│   └── security-fix-report.md
 └── skills/
     ├── fix-injection/
     ├── fix-xml-deserialization/
@@ -68,7 +67,6 @@ security-autofix-results/
 ```text
 /security-fix <漏洞描述、Finding 或文件位置>
 /security-fix-report <扫描报告路径>
-/security-verify <已有 Patch、Diff 和补丁前证据>
 ```
 
 也可以直接选择 `security-autofix` Agent 并提供同类输入。
@@ -80,13 +78,12 @@ security-autofix-results/
 - 用户描述的安全问题；
 - SARIF、JSON、CSV、Markdown 或文本扫描报告；
 - Scanner Finding、CWE、Rule ID、文件和行号；
-- 需要只读验证的已有安全 Patch。
 
 报告过大、内容截断或格式无法可靠理解时，工作流会明确标记警告，并停止为相关 Finding 自动生成 Patch。
 
 ## Patch-only 模型
 
-`AUTOFIX` 模式要求目标目录是 Git 仓库、主工作区完全干净，并且结果目录已被 Git 忽略。验证器记录统一的 `task_start_head`，之后：
+目标目录必须是 Git 仓库、主工作区完全干净，并且结果目录已被 Git 忽略。验证器记录统一的 `task_start_head`，之后：
 
 1. 为每个 Finding 分配任务内标识 `finding-001`、`finding-002` 等。外部 Finding ID 和用户输入不会直接进入路径。
 2. 每个 Finding 从同一个 `task_start_head` 创建独立 detached worktree。

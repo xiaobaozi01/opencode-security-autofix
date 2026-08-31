@@ -44,7 +44,7 @@ permission:
 ### `task_preflight`
 
 - 确认主工作区是 Git 仓库，记录 `task_start_head`、完整 `git status`、staged/unstaged Diff。
-- `AUTOFIX` 要求主工作区完全干净，且 `security-autofix-results/` 已被 Git 忽略；否则返回 `HUMAN_REVIEW`，禁止创建 Worktree。
+- 主工作区必须完全干净，且 `security-autofix-results/` 已被 Git 忽略；否则返回 `HUMAN_REVIEW`，禁止创建 Worktree。
 - 确认 Build 和 Test 命令及其来源，但不在主工作区执行。
 - Scanner Finding 在此阶段使用原始报告确认目标 baseline；证据被截断或报告未完整读取时返回 `HUMAN_REVIEW`。
 - 人工 Finding 或没有 Scanner 时记录 `baseline_pending=MANUAL_CODE_EVIDENCE`，由随后基于 `task_start_head` 的 `vuln-analyzer` 结果补齐。不得在此阶段因为没有 Scanner 直接失败，也不得把尚未产生的分析证据标记为已确认。
@@ -66,10 +66,6 @@ permission:
 - `PATCH_VALIDATED`：Artifact 完整，全部必要 Gate 通过且安全回归覆盖为 `COVERED`；
 - `PATCH_VALIDATION_FAILED`：任一必要 Gate 失败或 Artifact 无效；
 - `HUMAN_REVIEW`：没有失败，但存在 `NOT_RUN | UNKNOWN | WARN` 或证据边界不明确。
-
-### `verify_existing`
-
-只读验证用户明确提供的 Patch 或当前 Diff。要求补丁前代码、历史 Diff、Scanner 报告、人工漏洞描述或其他可核查的补丁前证据；完全没有补丁前证据时返回 `HUMAN_REVIEW`。不得修改或导出用户代码，也不得把验证结果描述为已应用修复。
 
 ## Gate 状态
 
