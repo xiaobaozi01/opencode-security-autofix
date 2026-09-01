@@ -1,35 +1,17 @@
 # Security AutoFix
 
-Security AutoFix 是一个只由 Agent、Subagent 和领域 Skill 组成的安全 Patch 工具包。它读取安全报告或人工描述，判断漏洞是否真实，选择已有修复策略，并在独立 Git worktree 中生成和验证 Patch。
+Security AutoFix 是一个只由 Agent、Subagent 和领域 Skill 组成的安全 Patch 工具包，支持 OpenCode 和 Claude Code。它读取安全报告或人工描述，判断漏洞是否真实，选择已有修复策略，并在独立 Git worktree 中生成和验证 Patch。
 
 工具包默认不修改主工作区。使用者在本次命令中明确要求时，可以按顺序尝试把 `PATCH_READY` 应用到主工作区；不会暂存或提交修改。
 
-## 组成
+## 平台目录
 
-```text
-.opencode/
-├── agents/
-│   ├── security-autofix.md      # 主编排
-│   ├── report-analyzer.md       # 整理报告事实
-│   ├── vuln-analyzer.md         # 判断漏洞真实性
-│   ├── fix-planner.md           # 选择 Skill strategy 并规划
-│   ├── code-fixer.md            # 在 Worktree 中修改
-│   ├── fix-validator.md         # Preflight、Build、Test 与 Patch 验证
-│   ├── final-judge.md           # 独立裁决 Patch
-│   └── result-reporter.md       # 生成总报告
-├── commands/
-│   ├── security-fix.md
-│   └── security-fix-report.md
-└── skills/
-    ├── fix-injection/
-    ├── fix-xml-deserialization/
-    ├── fix-web-security/
-    ├── fix-request-security/
-    ├── fix-auth-security/
-    ├── fix-crypto-secret/
-    ├── fix-code-security/
-    └── fix-dependency-config/
-```
+| 平台 | Agent | 命令与领域 Skill |
+| --- | --- | --- |
+| OpenCode | `.opencode/agents/` | `.opencode/commands/`、`.opencode/skills/` |
+| Claude Code | `.claude/agents/` | `.claude/skills/` |
+
+两个平台都包含同一组角色：`security-autofix` 主编排，以及 `report-analyzer`、`vuln-analyzer`、`fix-planner`、`code-fixer`、`fix-validator`、`final-judge` 和 `result-reporter`。
 
 Agent 之间使用简短 Markdown 交接事实、结论和证据，不依赖代码、脚本或严格 JSON 协议。仅保留少量必须稳定的锚点，例如 Finding 编号和统一起始提交。
 
@@ -61,7 +43,7 @@ fix-validator 按编号逐个验证并导出 Patch
 
 ## 使用
 
-将 `.opencode/` 合并到目标项目。建议在目标项目的 `.gitignore` 中加入：
+把所用平台的目录复制到目标项目根目录：OpenCode 使用 `.opencode/`，Claude Code 使用 `.claude/`。建议在目标项目的 `.gitignore` 中加入：
 
 ```text
 security-autofix-results/
@@ -69,14 +51,16 @@ security-autofix-results/
 
 这只是为了减少 `git status` 噪声，并避免以后执行 `git add .` 时误加入结果文件，不是运行前提。
 
-然后运行：
+OpenCode 和 Claude Code 都可以运行：
 
 ```text
 /security-fix <漏洞描述、Finding 或文件位置>
 /security-fix-report <扫描报告路径>
 ```
 
-也可以直接选择 `security-autofix` Agent。
+OpenCode 可以直接选择 `security-autofix` Agent。Claude Code 可以运行 `claude --agent security-autofix`，再输入漏洞描述或报告路径。
+
+Claude Code 的 `/security-fix` 和 `/security-fix-report` 在主会话内执行编排，因此能够调用其余 Subagent；不需要启用 Agent Teams。Claude Agent 使用 `bypassPermissions` 和明确的工具白名单实现无人值守运行，但用户级、组织级策略或启动参数仍可能施加更严格的限制。
 
 默认只生成 Patch。如果希望尝试应用，请在本次命令中直接说明，例如：
 

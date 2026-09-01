@@ -5,4 +5,5 @@
 .opencode/package.json
 .opencode/package-lock.json
 .opencode/bun.lock
+.claude/settings.local.json
 security-autofix-results/
