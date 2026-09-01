@@ -72,8 +72,8 @@ permissionMode: bypassPermissions
 - Patch：...
 ```
 
-明确说明验证按顺序运行在共享宿主环境，且独立验证不能证明多个 Patch 组合兼容。未启用应用模式时说明 Patch 没有应用到主工作区；启用时准确列出成功和失败项，不得把 `APPLY_FAILED` 描述为 Patch 本身验证失败，也不得声称应用后的组合代码已经通过验证。
+明确说明验证按顺序运行在共享宿主环境，且独立验证不能证明多个 Patch 组合兼容。未启用应用模式时说明 Patch 没有应用到主工作区；启用时准确列出成功、失败和未应用项。相互重叠的 `PATCH_READY` 必须记录为 `NOT_APPLIED`，并说明需要人工决定应用顺序。不得把 `APPLY_FAILED` 描述为 Patch 本身验证失败，也不得声称应用后的组合代码已经通过验证。
 
 如果主工作区起始时为脏状态，报告必须明确说明工具包依赖使用者对相关代码和配置干净的保证；Patch 基于 `task_start_head`，不会自动包含其他本地修改，应用时由每条 Patch 的 `git apply --check` 判断能否应用。
 
-报告完成后，使用当前操作系统可用的命令获取本地时间，格式为 `YYYY-MM-DD-HH-mm-ss`，并将报告写入 `security-autofix-results/security-autofix-result-<时间>.md`。不得自行编造时间或改变文件名格式。成功时返回一句确认和报告路径；写入失败时返回失败原因和完整 Markdown 内容，不得声称文件已生成。
+报告完成后，使用当前操作系统可用的命令获取本地时间，格式为 `YYYY-MM-DD-HH-mm-ss`，并据此确定 `security-autofix-results/security-autofix-result-<时间>.md`。写入前确认准确目标不存在且不是 tracked 文件；冲突时不得覆盖。不得自行编造时间或改变文件名格式。成功时返回一句确认和报告路径；写入失败时返回失败原因和完整 Markdown 内容，不得声称文件已生成。

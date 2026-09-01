@@ -16,6 +16,7 @@ permissionMode: bypassPermissions
 ```markdown
 # finding-NNN 漏洞分析
 
+- 起始提交：<完整 commit>
 - 结论：VULNERABLE | NOT_VULNERABLE | PARTIAL | NEED_CONTEXT
 - 置信度：HIGH | MEDIUM | LOW
 
@@ -40,4 +41,15 @@ permissionMode: bypassPermissions
 - <假设、缺失上下文；没有则写“无”>
 ```
 
-证据与假设必须分开。只有 `VULNERABLE/HIGH` 才能进入自动修复规划。
+证据与假设必须分开。
+
+- `VULNERABLE`：真实调用路径表明攻击者可控输入能够到达危险 Sink，且现有控制不足。
+- `NOT_VULNERABLE`：Finding 所述危险路径不存在，或现有控制能够阻断该路径。
+- `PARTIAL`：部分危险路径已有证据，但仍需关键假设才能判断漏洞是否成立。
+- `NEED_CONTEXT`：缺少必要代码、配置或身份信息，或者 Finding 编号、身份、基准不一致，无法继续分析。
+
+置信度表示结论的证据强度，不表示漏洞严重级别：
+
+- `HIGH`：结论由完整调用路径和直接代码证据支持，没有影响结论的关键假设。
+- `MEDIUM`：主要证据存在，但仍有影响结论的有限推断或不确定分支。
+- `LOW`：证据不足，结论主要依赖假设或缺失上下文。

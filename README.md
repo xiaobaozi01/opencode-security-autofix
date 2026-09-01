@@ -1,8 +1,8 @@
 # Security AutoFix
 
-Security AutoFix 是一个只由 Agent、Subagent 和领域 Skill 组成的安全 Patch 工具包，支持 OpenCode 和 Claude Code。它读取安全报告或人工描述，判断漏洞是否真实，选择已有修复策略，并在独立 Git worktree 中生成和验证 Patch。
+Security AutoFix 是一个只由 Agent、Subagent 和领域 Skill 组成的安全 Patch 工具包，支持 OpenCode 和 Claude Code。它读取安全报告或用户直接描述的问题，判断漏洞是否真实，选择已有修复策略，并在独立 Git worktree 中生成和验证 Patch。
 
-工具包默认不修改主工作区。使用者在本次命令中明确要求时，可以按顺序尝试把 `PATCH_READY` 应用到主工作区；不会暂存或提交修改。
+工具包默认不修改主工作区。使用者在本次命令中明确要求时，可以按顺序尝试把不重叠的 `PATCH_READY` 应用到主工作区；不会暂存或提交修改。
 
 ## 平台目录
 
@@ -18,7 +18,7 @@ Agent 之间使用简短 Markdown 交接事实、结论和证据，不依赖代�
 ## 工作流
 
 ```text
-报告或人工描述
+安全报告或用户直接描述的问题
     ↓
 整理 Finding，并分配 finding-001、finding-002...
     ↓
@@ -34,12 +34,10 @@ fix-validator 按编号逐个验证并导出 Patch
     ↓
 逐 Patch 裁决
     ↓
-可选：按编号串行尝试应用 PATCH_READY
+可选：按编号串行尝试应用不重叠的 PATCH_READY
     ↓
 一次总报告
 ```
-
-单条 Finding 与多条 Finding 使用完全相同的流程。单条只是队列长度为一。
 
 ## 使用
 
@@ -80,7 +78,7 @@ Claude Code 的 `/security-fix` 和 `/security-fix-report` 在主会话内执行
 - 当前目录是 Git 仓库；
 - 所有 Finding 使用同一个 `task_start_head`。
 
-主工作区可以包含 staged、unstaged 和 untracked 修改，但使用者必须在运行前保证：目标代码、测试，以及影响构建和安全行为的配置都与 `HEAD` 一致。脏状态只能来自与本次代码分析无关的报告、说明、工具文件或其他内容。工具包信任这个前提，不逐个判断 dirty 文件是否属于代码。
+任务开始时允许 Git 工作区为脏状态，但使用者必须保证目标代码、测试和相关配置与 `HEAD` 一致。工具包不逐个判断 dirty 文件是否相关。
 
 每条 Finding 获得一个任务内编号，例如 `finding-001`。这个编号只用于关联证据、Worktree 和 Patch，不使用外部 Rule、路径或用户输入构造文件系统路径。
 
@@ -91,13 +89,13 @@ security-autofix-results/worktrees/<run-id>/<finding-key>
 security-autofix-results/patches/<run-id>/<finding-key>.patch
 ```
 
-结果目录不需要被 Git 忽略，但工具包不会覆盖已有路径或其中的 tracked 文件。
+结果目录不需要被 Git 忽略。`run-id` 在创建第一个 Worktree 前确定，在本次任务中保持不变，并且不由用户输入构造。Worktree 在创建前检查准确目标路径；Patch 在对应验证开始前检查准确目标文件；报告在确定时间戳后检查准确目标文件。发生冲突时不会覆盖已有内容，Patch 和报告也不会写入 tracked 目标文件。
 
 Worktree 中不 commit、不创建分支、不 stash、不 reset。默认模式不会执行 `git apply`，也不会把修改复制回主工作区。
 
-漏洞分析和规划可以读取使用者保证干净的相关代码。只有适合自动修复的 Finding 才会从 `task_start_head` 创建 Worktree；修改和验证只在该 Worktree 中完成。Worktree 和 Patch 不会自动包含其他本地未提交内容。
+漏洞分析和规划可以读取使用者保证干净的相关代码。只有适合自动修复的 Finding 才会从 `task_start_head` 创建 Worktree；修改和验证只在该 Worktree 中完成。Worktree 和 Patch 基于 `task_start_head`，不包含主工作区的未提交修改。
 
-明确启用应用模式后，只处理 `PATCH_READY`。开始前必须确认主工作区仍为 `task_start_head`；检查失败时不会应用任何 Patch。
+明确启用应用模式后，只处理不与其他 `PATCH_READY` 重叠的 Patch。相互重叠的 `PATCH_READY` 均保留为 `NOT_APPLIED`，由人工决定应用顺序。开始前必须确认主工作区仍为 `task_start_head`；检查失败时不会应用任何待应用 Patch。
 
 前置检查通过后按 Finding 编号串行执行 `git apply --check --binary` 和 `git apply --binary`。单条失败会记录实际命令、退出码和错误摘要，然后继续下一条；不会使用 `--reject`、`--3way`，不会手工解决冲突，也不会回滚此前已经成功应用的 Patch。
 
@@ -121,8 +119,6 @@ Build/Test 命令只来自：
 3. Maven、Gradle、package.json、Makefile、CI 等项目已有配置。
 
 验证器不猜测命令，不安装缺失依赖，也不补造环境变量、数据库、服务或 Secret。每条实际命令都会记录来源、工作目录、退出码和关键输出。
-
-如果 README、构建文件或 CI 配置有未提交修改，使用者必须在任务输入中明确提供要运行的完整命令，并认识到 Patch 仍只基于 `task_start_head`。
 
 ## 修复与裁决
 
@@ -153,7 +149,7 @@ Build/Test 命令只来自：
 
 每个 Patch 始终只处理一个 Finding。规划和验证会记录重叠的文件、Hunk、符号、组件或安全不变量，但不会合并 Patch，也不会在 Worktree 中做组合测试。
 
-应用模式固定按 Finding 编号处理。前一个 Patch 造成冲突时，后一个 Patch 的应用检查可能失败并被记录；即使全部成功，独立验证也不能证明组合代码兼容，仍应在最终代码上重新运行完整测试。
+应用模式不会自动应用相互重叠的 `PATCH_READY`；这些 Patch 保持独立裁决状态，应用状态记录为 `NOT_APPLIED`，由人工决定顺序。其余 Patch 按 Finding 编号处理。即使全部成功，独立验证也不能证明组合代码兼容，仍应在最终代码上重新运行完整测试。
 
 ## 报告与保留内容
 
@@ -173,4 +169,4 @@ Worktree、Patch 和报告默认保留，工具包不自动删除或 prune，便
 
 工具包不会执行安装、发布、部署、数据库迁移、远程写入、Secret 操作、Git 暂存或 Git 提交。无人值守 Build/Test 会执行目标仓库已有代码和脚本，因此只适用于可信仓库或已经由用户隔离的运行环境。
 
-已有安全报告只作为输入和补丁前证据。本流程不执行 Rescan，也不会把“生成了 Patch”描述为“漏洞已经消失”。
+已有安全报告只作为输入和补丁前证据；“生成了 Patch”不代表漏洞已经消失。
