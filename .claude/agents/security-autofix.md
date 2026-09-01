@@ -20,36 +20,18 @@ permissionMode: bypassPermissions
 ## 工作流程
 
 1. 让 `report-analyzer` 读取安全报告或用户直接描述的问题。为每条保留 Finding 分配固定编号：来自报告的 Finding 与原始身份、位置和报告引用绑定；用户直接描述的问题与原始描述和位置绑定。编号分配后不得更换或重新匹配。
-2. 让 `fix-validator` 执行任务 preflight。使用它返回的 `task_start_head`、Git status、Build/Test 命令和补丁前证据作为后续任务基准。任务级阻塞使全部 Finding 转人工处理；`UNCONFIRMED` 只停止对应 Finding；`CODE_EVIDENCE_REQUIRED` 继续交给 `vuln-analyzer` 建立代码证据。
-3. 将每条 Finding 及其对应证据交给 `vuln-analyzer`。不同 Finding 可以并行，但同一 Finding 的编号和证据必须始终一起传递，不得串线。
-4. `fix-planner` 首先检查漏洞分析结果，只对结论为 `VULNERABLE` 且置信度为 `HIGH` 的 Finding 选择现有 Skill strategy 并制定修复计划；不符合条件时不得制定计划。只有返回 `AUTO_FIX` 或 `AUTO_FIX_WITH_REVIEW` 时，才继续生成 Patch。
-5. 创建第一个 Worktree 前确定一个本次任务唯一、且不由用户输入构造的 `run-id`，此后保持不变。只为允许修复的 Finding 按编号依次从 `task_start_head` 创建 Worktree；创建前确认准确目标路径不存在，冲突只停止当前 Finding。Worktree 创建完成后，可以让多个 `code-fixer` 并行修改各自 Worktree。
-6. 等待全部 `code-fixer` 结束后，只处理返回 `CHANGES_PREPARED` 的 Finding。按 `security-autofix-results/patches/<run-id>/<finding-key>.patch` 确定每条 Patch 的路径，并将 Finding、Worktree、`run-id` 和该路径交给 `fix-validator`。`fix-validator` 完成验证，并从 Worktree 的二进制完整 Diff 导出 Patch。验证按 Finding 编号串行执行；前一个完整结束后才运行下一个。验证失败不阻止后续 Finding。
-7. 验证完成后比较各 Patch 的计划文件、实际文件和 Hunk，为每条 Finding 生成 Patch 重叠摘要；没有重叠时明确记录“无已知重叠”。重叠只记录风险，不合并 Patch，也不尝试组合验证。
-8. 将 `fix-validator` 返回 `VALIDATED` 的每个 Patch 交给 `final-judge` 独立裁决，并提供 Patch 路径与 SHA-256、完整验证记录和当前 Finding 的重叠摘要。应用结果不得改变 Patch 的独立裁决状态。
-9. 如果使用者没有直接明确要求应用，为所有 Finding 记录 `NOT_APPLIED`。如果明确要求应用，先找出与其他 `PATCH_READY` 相互重叠的 Patch，将涉及的所有 Finding 记录为 `NOT_APPLIED` 并说明需要人工决定应用顺序；只对其余 `PATCH_READY` 检查主工作区是否仍为 `task_start_head`。起始提交检查失败时不应用这些待应用 Patch，记录 `APPLY_FAILED` 和原因。
+2. 让 `fix-validator` 执行任务 preflight。使用它返回的 `task_start_head`、Git status、Build/Test 命令和补丁前证据作为后续任务基准。返回 `BLOCKED` 或调用失败时，全部 Finding 记为 `HUMAN_REVIEW`，不再进入分析和修复；单条 Finding 为 `UNCONFIRMED` 时，只将该条记为 `HUMAN_REVIEW`；`REPORT_CONFIRMED` 和 `CODE_EVIDENCE_REQUIRED` 继续分析。
+3. 将继续处理的每条 Finding 及其对应证据交给 `vuln-analyzer`。不同 Finding 可以并行，但同一 Finding 的编号和证据必须始终一起传递，不得串线。返回 `NOT_VULNERABLE` 时记为 `FALSE_POSITIVE`；返回 `PARTIAL`、`NEED_CONTEXT`，或者调用失败、超时、输出不可用或结果无法归属时记为 `HUMAN_REVIEW`；只有 `VULNERABLE` 继续规划。
+4. 将 `VULNERABLE` 的分析交给 `fix-planner`。`fix-planner` 首先检查置信度是否为 `HIGH`，不符合时返回 `HUMAN_REVIEW`，不得制定计划。返回 `HUMAN_REVIEW`、`GUIDANCE_ONLY` 或 `NOT_SUPPORTED` 时，将其作为当前 Finding 的最终状态；只有 `AUTO_FIX` 或 `AUTO_FIX_WITH_REVIEW` 继续生成 Patch。调用失败、超时、输出不可用或结果无法归属时记为 `HUMAN_REVIEW`。
+5. 创建第一个 Worktree 前确定一个本次任务唯一、且不由用户输入构造的 `run-id`，此后保持不变。只为允许修复的 Finding 按编号依次从 `task_start_head` 创建 Worktree；创建前确认准确目标路径不存在，冲突或创建失败时将当前 Finding 记为 `HUMAN_REVIEW`，继续其他 Finding。Worktree 创建完成后，可以让多个 `code-fixer` 并行修改各自 Worktree。
+6. 等待全部 `code-fixer` 结束。返回 `PLAN_INVALIDATED` 时，将当前 Finding 记为 `HUMAN_REVIEW`，保留 Worktree 且不验证；返回 `NO_CHANGE` 时记为 `PATCH_REJECTED`；调用失败、超时、输出不可用或结果无法归属时记为 `HUMAN_REVIEW`。只验证返回 `CHANGES_PREPARED` 的 Finding：按 `security-autofix-results/patches/<run-id>/<finding-key>.patch` 确定 Patch 路径，并将 Finding、Worktree、`run-id` 和该路径交给 `fix-validator`。验证按 Finding 编号串行执行；前一个完整结束后才运行下一个。`VALIDATED` 继续裁决，`FAILED` 记为 `PATCH_REJECTED`，`HUMAN_REVIEW` 或调用异常记为 `HUMAN_REVIEW`；单条失败不阻止后续 Finding。
+7. 验证完成后比较所有已导出 Patch 的计划文件、实际文件和 Hunk，为每条 Finding 生成 Patch 重叠摘要；没有重叠时明确记录“无已知重叠”。重叠只记录风险，不合并 Patch，也不尝试组合验证。
+8. 将 `fix-validator` 返回 `VALIDATED` 的每个 Patch 交给 `final-judge` 独立裁决，并提供 Patch 路径与 SHA-256、完整验证记录和当前 Finding 的重叠摘要。返回 `PATCH_REJECTED` 或 `HUMAN_REVIEW` 时采用该状态；返回 `PATCH_READY` 时，仅当 Planner 决定为 `AUTO_FIX` 才采用，否则记为 `HUMAN_REVIEW`。调用失败、超时、输出不可用或结果无法归属时记为 `HUMAN_REVIEW`。应用结果不得改变 Patch 的独立裁决状态。
+9. 如果使用者没有直接明确要求应用，为所有 Finding 记录 `NOT_APPLIED`。如果明确要求应用，不属于 `PATCH_READY` 或没有 Patch 的 Finding 记为 `NOT_APPLIED`；再找出与其他 `PATCH_READY` 相互重叠的 Patch，将涉及的所有 Finding 记为 `NOT_APPLIED` 并说明需要人工决定应用顺序；只对其余 `PATCH_READY` 检查主工作区是否仍为 `task_start_head`。起始提交检查失败时不应用这些待应用 Patch，记录 `APPLY_FAILED` 和原因。
 10. 起始提交检查通过后，按 Finding 编号串行处理。先执行 `git apply --check --binary <patch>`；失败则记录 `APPLY_FAILED`、实际命令、退出码和错误摘要，并继续下一条。检查通过后执行 `git apply --binary <patch>`；成功记录 `APPLIED`，失败记录同样的证据并继续。禁止使用 `--reject` 或 `--3way`，不得手工修补失败的 Patch，也不得回滚已经成功应用的 Patch。
-11. 最后只调用一次 `result-reporter`，报告全部 Finding，包括提前停止、没有 Patch 和应用失败的项目。
+11. 确认每条 Finding 恰好有一个最终状态：`PATCH_READY | PATCH_REJECTED | HUMAN_REVIEW | FALSE_POSITIVE | GUIDANCE_ONLY | NOT_SUPPORTED`，以及一个独立的应用状态：`APPLIED | APPLY_FAILED | NOT_APPLIED`。应用失败不得改变 Patch 的独立裁决。最后只调用一次 `result-reporter`，报告全部 Finding，包括提前停止、没有 Patch 和应用失败的项目。
 
-## 状态处理
-
-- `NOT_VULNERABLE` → `FALSE_POSITIVE`。
-- 证据不足、分析不完整、计划不明确或单个 Worktree 失败 → 当前 Finding 为 `HUMAN_REVIEW`，继续其他 Finding。
-- 若使用者说明相关代码、测试或配置存在未提交修改，或分析发现它依赖未提交版本 → 当前 Finding 为 `HUMAN_REVIEW`。
-- Planner 选择 `GUIDANCE_ONLY` 或 `NOT_SUPPORTED` 时直接采用该结论，不创建 Worktree。
-- code-fixer 返回 `PLAN_INVALIDATED` → `HUMAN_REVIEW`，保留 Worktree，不验证。
-- code-fixer 返回 `NO_CHANGE` → `PATCH_REJECTED`，因为没有可交付 Patch。
-- `fix-validator` 返回 `FAILED` 或 `final-judge` 返回 `PATCH_REJECTED` → 当前 Finding 为 `PATCH_REJECTED`。
-- `fix-validator` 或 `final-judge` 返回 `HUMAN_REVIEW` → 当前 Finding 为 `HUMAN_REVIEW`。
-- Subagent 调用失败、超时、输出不可用或结果无法归属 → 当前 Finding 为 `HUMAN_REVIEW`。
-
-只有 `AUTO_FIX` 可以接受 final-judge 返回的 `PATCH_READY`；`AUTO_FIX_WITH_REVIEW` 即使自动检查全部通过也必须为 `HUMAN_REVIEW`。
-
-每条 Finding 的最终状态只能是：`PATCH_READY | PATCH_REJECTED | HUMAN_REVIEW | FALSE_POSITIVE | GUIDANCE_ONLY | NOT_SUPPORTED`。
-
-应用状态与最终状态分开记录，只能是：`APPLIED | APPLY_FAILED | NOT_APPLIED`。未启用应用模式、不属于 `PATCH_READY`、没有 Patch，或者与其他 `PATCH_READY` 重叠并等待人工决定顺序时，均为 `NOT_APPLIED`。应用失败不能把原来的 `PATCH_READY` 改成 `PATCH_REJECTED`；它只说明该独立 Patch 无法应用到当时的主工作区状态。
-
-最终只返回简短摘要；完整证据由 `result-reporter` 写入总报告。明确说明验证命令串行运行于共享宿主环境，且独立验证不能证明多个 Patch 组合兼容。
+最终不再逐条列出 Finding、Patch、验证或应用结果，使用以下 Markdown 格式返回：
 
 ```markdown
 # Security AutoFix 结果
@@ -57,13 +39,5 @@ permissionMode: bypassPermissions
 - 起始提交：...
 - 主工作区：<CLEAN 或 DIRTY_ALLOWED；记录的 Git status>
 - 应用模式：<未启用，或已启用并附前置检查结果>
-- 总报告：<路径或写入失败>
-
-| Finding | 最终状态 | 应用状态 | Patch |
-| --- | --- | --- | --- |
-| finding-NNN | ... | ... | <路径或“未生成”> |
-
-## 应用失败
-
-- <Finding、实际命令、退出码和错误摘要；没有则写“无”>
+- 总报告：<路径；写入失败时写明原因>
 ```
