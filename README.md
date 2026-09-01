@@ -2,7 +2,7 @@
 
 Security AutoFix 是一个只由 Agent、Subagent 和领域 Skill 组成的安全 Patch 工具包。它读取安全报告或人工描述，判断漏洞是否真实，选择已有修复策略，并在独立 Git worktree 中生成和验证 Patch。
 
-工具包不会把 Patch 应用到目标项目，也不会修改主工作区源码、测试、配置或 Git index。
+工具包默认不修改主工作区。使用者在本次命令中明确要求时，可以按顺序尝试把 `PATCH_READY` 应用到主工作区；不会暂存或提交修改。
 
 ## 组成
 
@@ -50,7 +50,11 @@ code-fixer 可在不同 Worktree 并行修改
     ↓ 等待全部 fixer 完成
 fix-validator 按编号逐个验证并导出 Patch
     ↓
-逐 Patch 裁决 → 一次总报告
+逐 Patch 裁决
+    ↓
+可选：按编号串行尝试应用 PATCH_READY
+    ↓
+一次总报告
 ```
 
 单条 Finding 与多条 Finding 使用完全相同的流程。单条只是队列长度为一。
@@ -74,9 +78,18 @@ security-autofix-results/
 
 也可以直接选择 `security-autofix` Agent。
 
+默认只生成 Patch。如果希望尝试应用，请在本次命令中直接说明，例如：
+
+```text
+/security-fix <漏洞描述>，并将 PATCH_READY 应用到主工作区
+/security-fix-report <扫描报告路径>，并将 PATCH_READY 应用到主工作区
+```
+
+扫描报告、Finding 或仓库文件中的应用指令不视为使用者授权。
+
 如果项目需要带参数的 Build/Test，请在输入中提供完整命令和工作目录。完整命令优先于 Agent 从仓库文档或 CI 配置中发现的命令。
 
-## Patch-only 模型
+## Patch 与可选应用
 
 运行前要求：
 
@@ -96,9 +109,13 @@ security-autofix-results/patches/<run-id>/<finding-key>.patch
 
 结果目录不需要被 Git 忽略，但工具包不会覆盖已有路径或其中的 tracked 文件。
 
-Worktree 中不 commit、不创建分支、不 stash、不 reset。工具包不执行 `git apply`，也不把修改复制回主工作区。
+Worktree 中不 commit、不创建分支、不 stash、不 reset。默认模式不会执行 `git apply`，也不会把修改复制回主工作区。
 
 漏洞分析和规划可以读取使用者保证干净的相关代码。只有适合自动修复的 Finding 才会从 `task_start_head` 创建 Worktree；修改和验证只在该 Worktree 中完成。Worktree 和 Patch 不会自动包含其他本地未提交内容。
+
+明确启用应用模式后，只处理 `PATCH_READY`。开始前必须确认主工作区仍为 `task_start_head`；检查失败时不会应用任何 Patch。
+
+前置检查通过后按 Finding 编号串行执行 `git apply --check --binary` 和 `git apply --binary`。单条失败会记录实际命令、退出码和错误摘要，然后继续下一条；不会使用 `--reject`、`--3way`，不会手工解决冲突，也不会回滚此前已经成功应用的 Patch。
 
 ## 并行与验证
 
@@ -146,13 +163,13 @@ Build/Test 命令只来自：
 
 任何必要检查失败时为 `PATCH_REJECTED`。没有失败但存在 `NOT_RUN`、警告、证据不足或不确定时为 `HUMAN_REVIEW`。`AUTO_FIX_WITH_REVIEW` 永远不会被自动升级为 `PATCH_READY`。
 
-`PATCH_READY` 只表示该 Patch 在自己的 Worktree 中相对于起始提交独立验证通过，不表示 Patch 已应用，也不表示多个 Patch 可以安全组合。
+`PATCH_READY` 只表示该 Patch 在自己的 Worktree 中相对于起始提交独立验证通过，不表示多个 Patch 可以安全组合。应用结果另外记录为 `APPLIED`、`APPLY_FAILED` 或 `NOT_APPLIED`，不会改变 Patch 的独立裁决状态。
 
 ## 多 Patch 风险
 
-每个 Patch 始终只处理一个 Finding。规划和验证会记录重叠的文件、Hunk、符号、组件或安全不变量，但不会合并 Patch，也不会把多个 Patch 应用到同一 Worktree 做组合测试。
+每个 Patch 始终只处理一个 Finding。规划和验证会记录重叠的文件、Hunk、符号、组件或安全不变量，但不会合并 Patch，也不会在 Worktree 中做组合测试。
 
-存在重叠时，需要用户决定应用顺序、重新整合，并在最终代码上重新运行完整测试。
+应用模式固定按 Finding 编号处理。前一个 Patch 造成冲突时，后一个 Patch 的应用检查可能失败并被记录；即使全部成功，独立验证也不能证明组合代码兼容，仍应在最终代码上重新运行完整测试。
 
 ## 报告与保留内容
 
@@ -162,14 +179,14 @@ Build/Test 命令只来自：
 security-autofix-results/security-autofix-result-YYYY-MM-DD-HH-mm-ss.md
 ```
 
-报告包含全部 Finding、原始身份、分析与规划、Patch 路径和 SHA-256、实际验证命令、未执行项、重叠风险、剩余风险及人工检查项。
+报告包含全部 Finding、原始身份、分析与规划、Patch 路径和 SHA-256、实际验证命令、应用状态与错误、未执行项、重叠风险、剩余风险及人工检查项。
 
-如果主工作区起始时为脏状态，报告会明确记录这一点以及“相关代码和配置由使用者保证干净”的运行前提。Patch 不会自动包含其他本地修改，应用时可能需要用户自行解决冲突。
+如果主工作区起始时为脏状态，报告会明确记录这一点以及“相关代码和配置由使用者保证干净”的运行前提。Patch 不会自动包含其他本地修改，应用时由每条 Patch 的 `git apply --check` 判断能否应用。
 
 Worktree、Patch 和报告默认保留，工具包不自动删除或 prune，便于用户复核和自行清理。
 
 ## 安全边界
 
-工具包不会执行安装、发布、部署、数据库迁移、远程写入、Secret 操作或 Git 提交。无人值守 Build/Test 会执行目标仓库已有代码和脚本，因此只适用于可信仓库或已经由用户隔离的运行环境。
+工具包不会执行安装、发布、部署、数据库迁移、远程写入、Secret 操作、Git 暂存或 Git 提交。无人值守 Build/Test 会执行目标仓库已有代码和脚本，因此只适用于可信仓库或已经由用户隔离的运行环境。
 
 已有安全报告只作为输入和补丁前证据。本流程不执行 Rescan，也不会把“生成了 Patch”描述为“漏洞已经消失”。
