@@ -20,6 +20,7 @@ permission:
   task:
     '*': deny
     report-analyzer: allow
+    task-preflight: allow
     vuln-analyzer: allow
     fix-planner: allow
     code-fixer: allow
@@ -46,7 +47,7 @@ permission:
 
 让 `report-analyzer` 读取安全报告或用户直接描述的问题。为每条保留 Finding 分配固定编号，并将报告中的 Finding 与原始身份、位置和引用绑定；用户直接描述的问题则与原始描述和位置绑定。编号确定后不得更换或重新匹配。
 
-让 `fix-validator` 完成任务 Preflight，确定统一的 `task_start_head`、Git status、Build/Test 命令和补丁前证据。无法建立任务基准时，全部 Finding 记为 `HUMAN_REVIEW`，不再分析和修复。单条 Finding 的报告证据无法确认时，只将该条记为 `HUMAN_REVIEW`，其余 Finding 继续。
+让 `task-preflight` 确定统一的 `task_start_head`、Git status、Build/Test 命令和补丁前证据。无法建立任务基准时，全部 Finding 记为 `HUMAN_REVIEW`，不再分析和修复。单条 Finding 的报告证据无法确认时，只将该条记为 `HUMAN_REVIEW`，其余 Finding 继续。
 
 ### 分析与规划
 
@@ -62,7 +63,7 @@ Worktree 全部创建完成后，让多个 `code-fixer` 并行完成各自计划
 
 ### 验证与裁决
 
-每条待验证 Finding 使用 `security-autofix-results/patches/<run-id>/<finding-key>.patch` 作为 Patch 保存路径。将 Finding、Worktree、`run-id` 和该路径交给 `fix-validator`；`fix-validator` 完成验证后，把 Worktree 相对 `task_start_head` 的完整 Diff 导出到该路径。验证按 Finding 编号逐个进行，前一个完整结束后才运行下一个。`VALIDATED` 继续裁决，`FAILED` 记为 `PATCH_REJECTED`，`HUMAN_REVIEW` 保持不变；单条失败不阻止后续 Finding。
+将主工作区根目录、Finding、计划、Worktree、`run-id` 和 `task-preflight` 的完整结果交给 `fix-validator`；`fix-validator` 为当前 Finding 确定 Patch 保存路径，完成验证并导出 Worktree 相对 `task_start_head` 的完整 Diff。主 Agent 按 Finding 编号逐个调用 `fix-validator`，前一个调用完整结束后才启动下一个。`VALIDATED` 继续裁决，`FAILED` 记为 `PATCH_REJECTED`，`HUMAN_REVIEW` 保持不变；单条失败不阻止后续 Finding。
 
 验证结束后，比较所有已导出 Patch 的计划文件、实际文件和 Hunk，为每条 Finding 记录重叠摘要。没有重叠时明确写“无已知重叠”。不要合并 Patch，也不要尝试组合验证。
 

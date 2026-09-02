@@ -5,6 +5,7 @@
 .claude/agents/report-analyzer.md
 .claude/agents/result-reporter.md
 .claude/agents/security-autofix.md
+.claude/agents/task-preflight.md
 .claude/agents/vuln-analyzer.md
 .claude/skills/fix-auth-security/SKILL.md
 .claude/skills/fix-code-security/SKILL.md
@@ -23,6 +24,7 @@
 .opencode/agents/report-analyzer.md
 .opencode/agents/result-reporter.md
 .opencode/agents/security-autofix.md
+.opencode/agents/task-preflight.md
 .opencode/agents/vuln-analyzer.md
 .opencode/commands/security-fix-report.md
 .opencode/commands/security-fix.md

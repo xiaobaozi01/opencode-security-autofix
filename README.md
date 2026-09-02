@@ -11,7 +11,7 @@ Security AutoFix 是一个只由 Agent、Subagent 和领域 Skill 组成的安�
 | OpenCode | `.opencode/agents/` | `.opencode/commands/`、`.opencode/skills/` |
 | Claude Code | `.claude/agents/` | `.claude/skills/` |
 
-两个平台都包含同一组角色：`security-autofix` 主编排，以及 `report-analyzer`、`vuln-analyzer`、`fix-planner`、`code-fixer`、`fix-validator`、`final-judge` 和 `result-reporter`。
+两个平台都包含同一组角色：`security-autofix` 主编排，以及 `report-analyzer`、`task-preflight`、`vuln-analyzer`、`fix-planner`、`code-fixer`、`fix-validator`、`final-judge` 和 `result-reporter`。
 
 Agent 之间使用简短 Markdown 交接事实、结论和证据，不依赖代码、脚本或严格 JSON 协议。仅保留少量必须稳定的锚点，例如 Finding 编号和统一起始提交。
 
@@ -22,7 +22,7 @@ Agent 之间使用简短 Markdown 交接事实、结论和证据，不依赖代�
     ↓
 整理 Finding，并分配 finding-001、finding-002...
     ↓
-Preflight：Git、当前状态、起始提交、原始证据和命令来源
+task-preflight：Git、当前状态、起始提交、原始证据和命令来源
     ↓
 漏洞分析 → 修复规划
     ↓
@@ -30,7 +30,7 @@ Preflight：Git、当前状态、起始提交、原始证据和命令来源
     ↓
 code-fixer 可在不同 Worktree 并行修改
     ↓ 等待全部 fixer 完成
-fix-validator 按编号逐个验证并导出 Patch
+主编排按编号逐个调用 fix-validator 验证并导出 Patch
     ↓
 逐 Patch 裁决
     ↓
@@ -82,7 +82,7 @@ Claude Code 的 `/security-fix` 和 `/security-fix-report` 在主会话内执行
 
 每条 Finding 获得一个任务内编号，例如 `finding-001`。这个编号只用于关联证据、Worktree 和 Patch，不使用外部 Rule、路径或用户输入构造文件系统路径。
 
-Worktree 和 Patch 位于：
+Worktree 和 Patch 位于主工作区根目录下：
 
 ```text
 security-autofix-results/worktrees/<run-id>/<finding-key>
@@ -118,7 +118,7 @@ Build/Test 命令只来自：
 2. 仓库 README、开发说明或 Agent 指令；
 3. Maven、Gradle、package.json、Makefile、CI 等项目已有配置。
 
-验证器不猜测命令，不安装缺失依赖，也不补造环境变量、数据库、服务或 Secret。每条实际命令都会记录来源、工作目录、退出码和关键输出。
+`task-preflight` 不猜测命令，`fix-validator` 只运行它已经确认的命令。工具包不安装缺失依赖，也不补造环境变量、数据库、服务或 Secret。每条实际命令都会记录来源、工作目录、退出码和关键输出。
 
 ## 修复与裁决
 
@@ -147,7 +147,7 @@ Build/Test 命令只来自：
 
 ## 多 Patch 风险
 
-每个 Patch 始终只处理一个 Finding。规划和验证会记录重叠的文件、Hunk、符号、组件或安全不变量，但不会合并 Patch，也不会在 Worktree 中做组合测试。
+每个 Patch 始终只处理一个 Finding。主编排会比较各 Patch 的计划文件、实际文件和 Hunk，记录重叠风险，但不会合并 Patch，也不会在 Worktree 中做组合测试。
 
 应用模式不会自动应用相互重叠的 `PATCH_READY`；这些 Patch 保持独立裁决状态，应用状态记录为 `NOT_APPLIED`，由人工决定顺序。其余 Patch 按 Finding 编号处理。即使全部成功，独立验证也不能证明组合代码兼容，仍应在最终代码上重新运行完整测试。
 

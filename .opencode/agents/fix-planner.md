@@ -53,7 +53,6 @@ permission:
 ## 验证计划
 
 - 安全回归测试：<需要增加或更新的测试>
-- Build/Test：<已知命令及来源；未知则写“由 fix-validator 确认”>
 
 ## 人工事项
 
