@@ -104,7 +104,7 @@ Worktree 中不 commit、不创建分支、不 stash、不 reset。默认模式�
 只读分析、修复规划和不同 Worktree 中的代码修改可以并行。以下操作串行执行：
 
 - Worktree 创建，避免竞争公共 Git 元数据；
-- Security Review、Build、Test 和安全回归验证，避免多个 Finding 同时争用缓存、端口、数据库、容器或服务。
+- Patch 安全审查、Build、Test 和安全回归验证，避免多个 Finding 同时争用缓存、端口、数据库、容器或服务。
 
 Worktree 只隔离源码目录和 Git index，不提供运行时隔离。验证命令运行在共享宿主环境中。需要更强隔离时，应在容器、虚拟机或独立 CI Job 中运行整个工具包。
 
@@ -139,7 +139,7 @@ Build/Test 命令只来自：
 - `GUIDANCE_ONLY`
 - `NOT_SUPPORTED`
 
-`PATCH_READY` 要求 Patch 完整、范围正确，并且 Analysis、Patch Scope、Security Review、Build、Tests、Security Regression 和 Regression Review 全部通过。主工作区是否 dirty 不改变单 Patch 的独立裁决。
+`PATCH_READY` 要求 Patch 完整、范围正确，并且 Evidence Binding、Patch Scope、Security Fix、Build、Tests 和 Security Regression 全部通过。主工作区是否 dirty 不改变单 Patch 的独立裁决。
 
 任何必要检查失败时为 `PATCH_REJECTED`。没有失败但存在 `NOT_RUN`、警告、证据不足或不确定时为 `HUMAN_REVIEW`。`AUTO_FIX_WITH_REVIEW` 永远不会被自动升级为 `PATCH_READY`。
 

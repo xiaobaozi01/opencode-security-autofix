@@ -39,7 +39,7 @@ Worktree 全部创建完成后，让多个 `code-fixer` 并行完成各自计划
 
 ### 验证与裁决
 
-将主工作区根目录、Finding、计划、Worktree、`run-id` 和 `task-preflight` 的完整结果交给 `fix-validator`；`fix-validator` 为当前 Finding 确定 Patch 保存路径，完成验证并导出 Worktree 相对 `task_start_head` 的完整 Diff。主 Agent 按 Finding 编号逐个调用 `fix-validator`，前一个调用完整结束后才启动下一个。`VALIDATED` 继续裁决，`FAILED` 记为 `PATCH_REJECTED`，`HUMAN_REVIEW` 保持不变；单条失败不阻止后续 Finding。
+将Finding、计划、Worktree、`run-id` 和 `task-preflight` 的完整结果交给 `fix-validator`；`fix-validator` 为当前 Finding 确定 Patch 保存路径，完成验证并导出 Worktree 相对 `task_start_head` 的完整 Diff。主 Agent 按 Finding 编号逐个调用 `fix-validator`，前一个调用完整结束后才启动下一个，并在每次调用后记录主工作区 HEAD 和 Git status。`VALIDATED` 继续裁决，`FAILED` 记为 `PATCH_REJECTED`，`HUMAN_REVIEW` 保持不变；单条失败不阻止后续 Finding。
 
 验证结束后，比较所有已导出 Patch 的计划文件、实际文件和 Hunk，为每条 Finding 记录重叠摘要。没有重叠时明确写“无已知重叠”。不要合并 Patch，也不要尝试组合验证。
 
