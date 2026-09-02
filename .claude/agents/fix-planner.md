@@ -45,9 +45,8 @@ permissionMode: bypassPermissions
 - 安全回归测试：<需要增加或更新的测试>
 - Build/Test：<已知命令及来源；未知则写“由 fix-validator 确认”>
 
-## 交互与人工事项
+## 人工事项
 
-- 可能重叠：<文件、符号、组件或“无已知重叠”>
 - 人工确认：<具体事项或“无”>
 ```
 

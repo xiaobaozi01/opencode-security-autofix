@@ -19,7 +19,7 @@ Finding 编号、原始身份、起始提交、计划、Worktree、Patch 和验�
 - 没有失败，但存在 `NOT_RUN`、警告、不确定或补丁前证据不足：`HUMAN_REVIEW`。
 - `AUTO_FIX_WITH_REVIEW` 存在检查失败时返回 `PATCH_REJECTED`；没有失败时固定返回 `HUMAN_REVIEW`。
 - 只有 `AUTO_FIX`、补丁前证据可信、`fix-validator` 返回 `VALIDATED`，并且所有必要检查通过时，才能返回 `PATCH_READY`。
-- Patch 与其他 Finding 重叠不改变它的独立裁决，但必须说明组合效果没有验证。如果最终有多个相互重叠的 `PATCH_READY`，主 Agent 不得自动应用其中任何一个，应用状态均为 `NOT_APPLIED`，由人工决定应用顺序。
+- Patch 与其他 Finding 重叠不改变它的独立裁决，但必须说明组合效果没有验证。
 
 使用以下 Markdown 格式返回：
 
